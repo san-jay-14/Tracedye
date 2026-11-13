@@ -13,8 +13,8 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: a login produces spans for each hop that the collector receives and prints.
 
 ## Day 3: Static indexer
-- [ ] `packages/indexer` with ts-morph: functions, imports, direct call edges, Express routes, DB and cache call sites
-- [ ] Output `{ nodes, edges }` with `provenance: 'static'`
+- [x] `packages/indexer` with ts-morph: functions, imports, direct call edges, Express routes, DB and cache call sites
+- [x] Output `{ nodes, edges }` with `provenance: 'static'`
 - Done when: indexing the sample app lists its functions and the main login call chain, and a test asserts it.
 
 ## Day 4: Function wrapper
