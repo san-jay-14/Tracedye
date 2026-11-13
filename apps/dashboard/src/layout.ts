@@ -36,7 +36,10 @@ export function layoutNodes(nodes: LayoutInput[], edges: LayoutEdge[]): Map<stri
     }
     state.set(id, "done");
   };
-  for (const node of [...nodes].sort(byId)) if (!state.has(node.id)) visit(node.id);
+  // Start from external nodes (the browser), so a request flows left to right from it and the
+  // call that returns to it is the one treated as a back edge.
+  const starts = [...nodes].sort((a, b) => Number(b.kind === "external") - Number(a.kind === "external") || byId(a, b));
+  for (const node of starts) if (!state.has(node.id)) visit(node.id);
 
   const layerOf = new Map<string, number>();
   const layer = (id: string): number => {

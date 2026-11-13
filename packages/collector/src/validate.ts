@@ -1,6 +1,7 @@
 import type { CollectorEvent, MapData, MapEdge, MapNode } from "./types";
 
-const PHASES = ["enter", "exit", "collapsed"];
+const PHASES = ["enter", "exit", "collapsed", "hop"];
+const HOP_KINDS = ["http", "db", "cache", "llm", "ws"];
 const NODE_KINDS = ["app", "store", "ai", "external"];
 // "observed" is deliberately missing: only runtime events may make an edge observed.
 const MAP_PROVENANCE = ["static", "inferred"];
@@ -33,6 +34,9 @@ export function parseEvents(body: unknown): CollectorEvent[] {
     if (typeof raw.phase !== "string" || !PHASES.includes(raw.phase)) {
       throw new BadRequest(`events[${i}].phase must be one of ${PHASES.join(", ")}`);
     }
+    if (raw.phase === "hop" && (typeof raw.kind !== "string" || !HOP_KINDS.includes(raw.kind))) {
+      throw new BadRequest(`events[${i}].kind must be one of ${HOP_KINDS.join(", ")}`);
+    }
     return {
       phase: raw.phase as CollectorEvent["phase"],
       triggerId: requireString(raw.triggerId, `events[${i}].triggerId`),
@@ -44,6 +48,9 @@ export function parseEvents(body: unknown): CollectorEvent[] {
       durationMs: optionalNumber(raw.durationMs, `events[${i}].durationMs`),
       threw: raw.threw === undefined ? undefined : raw.threw === true,
       calls: optionalNumber(raw.calls, `events[${i}].calls`),
+      kind: raw.phase === "hop" ? (raw.kind as CollectorEvent["kind"]) : undefined,
+      target: raw.phase === "hop" ? requireString(raw.target, `events[${i}].target`) : undefined,
+      note: optionalString(raw.note, `events[${i}].note`),
       input: raw.input,
       output: raw.output,
     };

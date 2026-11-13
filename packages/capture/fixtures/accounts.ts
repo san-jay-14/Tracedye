@@ -29,3 +29,8 @@ export function big(payload: string) {
   const size = payload.length;
   return size;
 }
+
+export function handleRequest(req: unknown) {
+  const seen = typeof req;
+  return seen;
+}

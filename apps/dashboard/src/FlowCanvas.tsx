@@ -3,14 +3,44 @@ import "@xyflow/react/dist/style.css";
 import { useMemo } from "react";
 import type { Graph } from "./graph";
 import { NODE_WIDTH, layoutNodes } from "./layout";
+import { PacketEdge } from "./PacketEdge";
 import { EDGE_LOOK } from "./provenance";
 
-export function FlowCanvas({ graph }: { graph: Graph }) {
-  const { nodes, edges } = useMemo(() => toFlow(graph), [graph]);
+const edgeTypes = { packet: PacketEdge };
+
+interface Props {
+  graph: Graph;
+  pulses: Record<string, number>;
+  selectedEdgeId?: string;
+  onEdgeClick: (edgeId: string) => void;
+}
+
+export function FlowCanvas({ graph, pulses, selectedEdgeId, onEdgeClick }: Props) {
+  // Positions and labels only change with the graph itself, not with every packet.
+  const base = useMemo(() => toFlow(graph), [graph]);
+  const edges = useMemo(
+    () =>
+      base.edges.map((edge) => ({
+        ...edge,
+        className: `${edge.className} ${edge.id === selectedEdgeId ? "edge-selected" : ""}`,
+        data: { pulse: pulses[edge.id] ?? 0 },
+      })),
+    [base.edges, pulses, selectedEdgeId],
+  );
 
   return (
     // Keyed by node count so the view re-fits when the map arrives or grows (fitView only runs on mount).
-    <ReactFlow key={nodes.length} nodes={nodes} edges={edges} colorMode="system" fitView nodesConnectable={false} minZoom={0.2}>
+    <ReactFlow
+      key={base.nodes.length}
+      nodes={base.nodes}
+      edges={edges}
+      edgeTypes={edgeTypes}
+      onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
+      colorMode="system"
+      fitView
+      nodesConnectable={false}
+      minZoom={0.2}
+    >
       <Background />
       <Controls showInteractive={false} />
     </ReactFlow>
@@ -42,6 +72,7 @@ function toFlow(graph: Graph): { nodes: Node[]; edges: Edge[] } {
     const { label, ...style } = EDGE_LOOK[edge.provenance];
     return {
       id: edge.id,
+      type: "packet",
       source: edge.from,
       target: edge.to,
       className: `edge-${edge.provenance}`,

@@ -132,6 +132,15 @@ describe("layoutNodes", () => {
     expect(at.get("x")!.x).toBeLessThan(at.get("y")!.x);
   });
 
+  it("puts an external node, such as the browser, at the left even when the flow returns to it", () => {
+    const at = layoutNodes(
+      [{ id: "route", kind: "app" }, { id: "handler", kind: "app" }, { id: "client", kind: "external" }],
+      [{ from: "client", to: "route" }, { from: "route", to: "handler" }, { from: "handler", to: "client" }],
+    );
+    expect(at.get("client")!.x).toBeLessThan(at.get("route")!.x);
+    expect(at.get("route")!.x).toBeLessThan(at.get("handler")!.x);
+  });
+
   it("ignores edges to unknown nodes", () => {
     expect(layoutNodes([{ id: "a", kind: "app" }], [{ from: "a", to: "ghost" }]).size).toBe(1);
   });

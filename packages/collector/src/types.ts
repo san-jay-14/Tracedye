@@ -2,8 +2,10 @@
 // collector doesn't depend on those packages.
 
 // One call of a wrapped function, already redacted inside the app process.
+export type HopKind = "http" | "db" | "cache" | "llm" | "ws";
+
 export interface CollectorEvent {
-  phase: "enter" | "exit" | "collapsed";
+  phase: "enter" | "exit" | "collapsed" | "hop";
   triggerId: string;
   triggerName: string;
   nodeId: string; // "file:name:line"
@@ -15,6 +17,11 @@ export interface CollectorEvent {
   input?: unknown;
   output?: unknown;
   calls?: number; // collapsed only
+  // hop only: a call that left the app's code. nodeId is where it starts, target where it goes,
+  // and spanId the function call it belongs to (whose input and output are its payload).
+  kind?: HopKind;
+  target?: string;
+  note?: string;
 }
 
 export type Provenance = "observed" | "static" | "inferred";

@@ -245,3 +245,115 @@ describe("spans", () => {
     expect((await post("/v1/traces", { resourceSpans: [] })).status).toBe(200);
   });
 });
+
+describe("hops", () => {
+  const hop = (extra: Partial<CollectorEvent> = {}): CollectorEvent => ({
+    phase: "hop",
+    kind: "llm",
+    triggerId: "t1",
+    triggerName: "user login",
+    nodeId: "llm.ts:classifySegment:14",
+    target: "llm",
+    spanId: "4",
+    atMs: 5,
+    note: "stub (no API key)",
+    ...extra,
+  });
+
+  it("are stored and read back in order with their kind, target and note", async () => {
+    const { post, get } = await start();
+    const sent = [event("t1", "login.ts:handleLogin:21", "enter"), hop(), hop({ kind: "ws", target: "client", note: undefined })];
+    await post("/events", sent);
+    expect(await get("/triggers/t1/events")).toEqual(sent.map((e) => JSON.parse(JSON.stringify(e))));
+  });
+
+  it("are pushed live like any other event", async () => {
+    const { port, post } = await start();
+    const client = await connect(port);
+    await client.until(() => client.messages.length >= 2);
+    await post("/events", [hop()]);
+    await client.until(() => client.messages.length >= 3);
+    expect(client.messages[2]).toEqual({ type: "event", event: hop() });
+    client.socket.close();
+  });
+
+  it.each([
+    ["an unknown kind", hop({ kind: "carrier-pigeon" as never })],
+    ["no target", hop({ target: undefined })],
+  ])("are rejected with %s", async (_name, bad) => {
+    const { post, get } = await start();
+    expect((await post("/events", [bad])).status).toBe(400);
+    expect(await get("/triggers")).toEqual([]);
+  });
+});
+
+describe("spans become hops", () => {
+  const attribute = (key: string, value: string | number) => ({
+    key,
+    value: typeof value === "string" ? { stringValue: value } : { doubleValue: value },
+  });
+  const span = (name: string, attributes: ReturnType<typeof attribute>[]) => ({
+    name,
+    kind: 3,
+    traceId: "abcdef0123456789",
+    startTimeUnixNano: "1000000000",
+    endTimeUnixNano: "4500000000",
+    attributes: attributes,
+  });
+  const tagged = [
+    attribute("capture.trigger_id", "t1"),
+    attribute("capture.trigger_name", "user login"),
+    attribute("capture.caller_node", "login.ts:validateCredentials:41"),
+    attribute("capture.caller_span", "2"),
+    attribute("capture.at_ms", 812.5),
+  ];
+  const traces = (...spans: object[]) => ({ resourceSpans: [{ scopeSpans: [{ spans }] }] });
+
+  it("turns a tagged Postgres query into a db hop from the calling function", async () => {
+    const { post, get } = await start();
+    await post("/v1/traces", traces(span("pg.query:SELECT", [...tagged, attribute("db.system.name", "postgresql"), attribute("db.query.text", "SELECT 1")])));
+    expect(await get("/triggers/t1/events")).toEqual([
+      {
+        phase: "hop",
+        kind: "db",
+        triggerId: "t1",
+        triggerName: "user login",
+        nodeId: "login.ts:validateCredentials:41",
+        target: "postgres",
+        spanId: "2",
+        atMs: 812.5,
+        durationMs: 3500,
+      },
+    ]);
+  });
+
+  it("turns a tagged Redis command into a cache hop", async () => {
+    const { post, get } = await start();
+    await post("/v1/traces", traces(span("set", [...tagged, attribute("db.system.name", "redis"), attribute("db.query.text", "set session:x")])));
+    expect(((await get("/triggers/t1/events")) as CollectorEvent[])[0]).toMatchObject({ kind: "cache", target: "redis" });
+  });
+
+  it("ignores spans capture did not tag, connection setup spans and non-store spans", async () => {
+    const { post, get } = await start();
+    await post(
+      "/v1/traces",
+      traces(
+        span("pg.query:SELECT", [attribute("db.system.name", "postgresql"), attribute("db.query.text", "SELECT 1")]), // no trigger
+        span("pg.connect", [...tagged, attribute("db.system.name", "postgresql")]), // no query
+        span("POST", [...tagged, attribute("http.request.method", "POST")]), // not a store
+        span("mongo.find", [...tagged, attribute("db.system.name", "mongodb"), attribute("db.query.text", "find")]), // unsupported store
+      ),
+    );
+    expect(await get("/triggers")).toEqual([]);
+  });
+
+  it("pushes the hop to connected clients", async () => {
+    const { port, post } = await start();
+    const client = await connect(port);
+    await client.until(() => client.messages.length >= 2);
+    await post("/v1/traces", traces(span("pg.query:SELECT", [...tagged, attribute("db.system.name", "postgresql"), attribute("db.query.text", "SELECT 1")])));
+    await client.until(() => client.messages.length >= 3);
+    expect(client.messages[2]).toMatchObject({ type: "event", event: { phase: "hop", kind: "db", target: "postgres" } });
+    client.socket.close();
+  });
+});

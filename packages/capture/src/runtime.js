@@ -39,13 +39,31 @@ if (process.env.NODE_ENV === "production") {
  * @property {number} calls total calls in the trigger, including the ones that were emitted
  */
 
-/** @typedef {FunctionEvent | CollapsedEvent} CaptureEvent */
+/**
+ * A call that left the app's own code: to a store, the LLM, or the client. Its payload is
+ * the input and output of the function call it belongs to (spanId), so it carries none.
+ * @typedef {object} HopEvent
+ * @property {"hop"} phase
+ * @property {"http" | "db" | "cache" | "llm" | "ws"} kind
+ * @property {string} triggerId
+ * @property {string} triggerName
+ * @property {string} nodeId where the hop starts: a function node, or "client" for an incoming request
+ * @property {string} target where it goes: "postgres", "redis", "llm", "client", or a route like "POST /login"
+ * @property {string} [spanId] the function call the hop belongs to
+ * @property {number} atMs
+ * @property {number} [durationMs]
+ * @property {string} [note]
+ */
+
+/** @typedef {FunctionEvent | CollapsedEvent | HopEvent} CaptureEvent */
 
 /**
  * @typedef {object} TriggerContext
  * @property {string} triggerId
  * @property {string} triggerName
  * @property {string} [spanId] the innermost wrapped call currently running
+ * @property {string} [nodeId] the function that call belongs to
+ * @property {string} [route] "POST /login", set when an HTTP request started the trigger, until the first call reports it
  */
 
 const COLLAPSE_AFTER = 10;
@@ -106,6 +124,44 @@ export function currentTriggerId() {
   return context.getStore()?.triggerId;
 }
 
+/**
+ * The wrapped function call that is running right now, while armed. Used to tag spans.
+ * @returns {{ triggerId: string, triggerName: string, spanId: string, nodeId: string } | undefined}
+ */
+export function currentCall() {
+  const current = context.getStore();
+  if (armedName === null || current?.spanId === undefined || current.nodeId === undefined) return undefined;
+  return { triggerId: current.triggerId, triggerName: current.triggerName, spanId: current.spanId, nodeId: current.nodeId };
+}
+
+/**
+ * Marks a call that leaves the app's own code, such as the LLM request or the WebSocket
+ * push, so it shows up as a hop. Just calls fn when nothing is armed or it is outside a trigger.
+ * @template T
+ * @param {"llm" | "ws" | "db" | "cache"} kind
+ * @param {string} target map node id the call goes to
+ * @param {() => T} fn
+ * @param {{ note?: string }} [options] note: shown with the hop, e.g. that the call was a stub
+ * @returns {T}
+ */
+export function boundary(kind, target, fn, options = {}) {
+  const call = currentCall();
+  if (call) {
+    emit({
+      phase: "hop",
+      kind,
+      triggerId: call.triggerId,
+      triggerName: call.triggerName,
+      nodeId: call.nodeId,
+      target,
+      spanId: call.spanId,
+      atMs: performance.now(),
+      note: options.note,
+    });
+  }
+  return fn();
+}
+
 /** @param {string} name */
 function mintTriggerId(name) {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -125,7 +181,8 @@ export function installHttpTrigger() {
     const { request } = /** @type {{ request: import("node:http").IncomingMessage }} */ (message);
     const header = request.headers["x-trigger-id"];
     const supplied = typeof header === "string" && /^[\w.:-]{1,64}$/.test(header) ? header : undefined;
-    context.enterWith({ triggerId: supplied ?? mintTriggerId(armedName), triggerName: armedName });
+    const route = `${request.method} ${(request.url ?? "").split("?")[0]}`;
+    context.enterWith({ triggerId: supplied ?? mintTriggerId(armedName), triggerName: armedName, route });
   });
 }
 
@@ -242,6 +299,11 @@ export function wrapFunction(nodeId, fn, paramNames = []) {
       atMs: start,
       input: redactedInput(name, paramNames, args),
     });
+    // The first call of an HTTP-started trigger is the request arriving from the client.
+    if (parentId === undefined && current.route !== undefined) {
+      emit({ phase: "hop", kind: "http", triggerId, triggerName, nodeId: "client", target: current.route, spanId, atMs: start });
+      current.route = undefined;
+    }
 
     /** @param {{ output?: unknown, threw?: boolean }} outcome */
     const finish = ({ output, threw }) => {
@@ -264,7 +326,7 @@ export function wrapFunction(nodeId, fn, paramNames = []) {
     /** @type {unknown} */
     let result;
     try {
-      result = context.run({ triggerId, triggerName, spanId }, () => fn.apply(this, args));
+      result = context.run({ triggerId, triggerName, spanId, nodeId }, () => fn.apply(this, args));
     } catch (error) {
       finish({ threw: true });
       throw error;

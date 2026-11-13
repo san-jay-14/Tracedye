@@ -77,9 +77,13 @@ function walk(value, options, depth, seen) {
     return items;
   }
 
-  // Class instances (Express req/res, sockets, ORM models...) can hold secrets under
-  // no key at all, such as rawHeaders, so they are never opened.
-  if (!isPlainObject(value)) return `[${constructorName(value)}]`;
+  // Class instances (Express res, sockets, ORM models...) can hold secrets under no key at
+  // all, such as rawHeaders, so they are never opened. A request is the one exception: it
+  // is summarised from a fixed list of fields, each going through the same key deny list.
+  if (!isPlainObject(value)) {
+    if (constructorName(value) === "IncomingMessage") return walk(summarizeRequest(value), options, depth, seen);
+    return `[${constructorName(value)}]`;
+  }
 
   seen.add(value);
   /** @type {Record<string, unknown>} */
@@ -102,6 +106,26 @@ function walk(value, options, depth, seen) {
   if (keys.length > MAX_ENTRIES) out["…"] = `${keys.length - MAX_ENTRIES} more`;
   seen.delete(value);
   return out;
+}
+
+/**
+ * Method, path, query, headers, parsed body and client address. The query string is split
+ * off the url and parsed, so `?token=abc` is caught by key like any other field.
+ * @param {object} value
+ */
+function summarizeRequest(value) {
+  const request = /** @type {{ method?: string, url?: string, headers?: object, body?: unknown, socket?: { remoteAddress?: string } }} */ (
+    value
+  );
+  const [path, queryString = ""] = (request.url ?? "").split("?");
+  return {
+    method: request.method,
+    path,
+    query: Object.fromEntries(new URLSearchParams(queryString)),
+    headers: { ...request.headers },
+    body: request.body,
+    ip: request.socket?.remoteAddress,
+  };
 }
 
 /** @param {object} value */

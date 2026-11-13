@@ -44,9 +44,9 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: the sample app's map renders and static-only edges look different from observed ones.
 
 ## Day 9: Live view
-- [ ] Packets animate along edges as real events arrive
-- [ ] `PayloadDiff` for the selected hop
-- [ ] `CallStack` view for a selected service
+- [x] Packets animate along edges as real events arrive
+- [x] `PayloadDiff` for the selected hop
+- [x] `CallStack` view for a selected service
 - Done when: a real login animates through all five hops and each hop shows its before and after payload.
 
 ## Day 10: Replay

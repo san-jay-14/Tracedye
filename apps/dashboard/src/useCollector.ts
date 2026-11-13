@@ -7,7 +7,10 @@ const RECONNECT_MS = 1000;
 export interface CollectorState {
   connected: boolean;
   map: MapData;
-  events: CollectorEvent[];
+  // Triggers already stored when the page connected, and events that arrived live since.
+  // Only live events are animated.
+  stored: CollectorEvent[];
+  live: CollectorEvent[];
   armed: string | null;
 }
 
@@ -16,7 +19,8 @@ export interface CollectorState {
 export function useCollector(): CollectorState {
   const [connected, setConnected] = useState(false);
   const [map, setMap] = useState<MapData>({ nodes: [], edges: [] });
-  const [events, setEvents] = useState<CollectorEvent[]>([]);
+  const [stored, setStored] = useState<CollectorEvent[]>([]);
+  const [live, setLive] = useState<CollectorEvent[]>([]);
   const [armed, setArmed] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,11 +30,10 @@ export function useCollector(): CollectorState {
 
     async function loadStored() {
       const triggers: { id: string }[] = await (await fetch(`${BASE}/triggers`)).json();
-      const stored = await Promise.all(
+      const events = await Promise.all(
         triggers.map(async (t): Promise<CollectorEvent[]> => (await fetch(`${BASE}/triggers/${encodeURIComponent(t.id)}/events`)).json()),
       );
-      // Stored events go first; any that also arrive live are harmless duplicates for the graph.
-      if (!stopped) setEvents((live) => [...stored.flat(), ...live]);
+      if (!stopped) setStored(events.flat());
     }
 
     function connect() {
@@ -43,7 +46,7 @@ export function useCollector(): CollectorState {
       socket.onmessage = (message) => {
         const data: StreamMessage = JSON.parse(message.data);
         if (data.type === "map") setMap({ nodes: data.nodes, edges: data.edges });
-        else if (data.type === "event") setEvents((all) => [...all, data.event]);
+        else if (data.type === "event") setLive((all) => [...all, data.event]);
         else setArmed(data.armed);
       };
       socket.onclose = () => {
@@ -60,5 +63,5 @@ export function useCollector(): CollectorState {
     };
   }, []);
 
-  return { connected, map, events, armed };
+  return { connected, map, stored, live, armed };
 }

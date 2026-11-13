@@ -120,3 +120,28 @@ describe("redact: size cap", () => {
     expect(DEFAULT_OPTIONS.maxBytes).toBe(4096);
   });
 });
+
+describe("redact: HTTP requests", () => {
+  it("summarises a request and never opens the rest of it", () => {
+    class IncomingMessage {
+      method = "POST";
+      url = "/login?token=qs&page=2";
+      headers = { authorization: "Bearer abc", cookie: "sid=1", accept: "*/*" };
+      body = { email: "a@b.c", password: "hunter2" };
+      rawHeaders = ["Authorization", "Bearer abc"];
+      socket = { remoteAddress: "::1" };
+    }
+    const result = redact({ req: new IncomingMessage() });
+    expect(result).toEqual({
+      req: {
+        method: "POST",
+        path: "/login",
+        query: { token: REDACTED, page: "2" },
+        headers: { authorization: REDACTED, cookie: REDACTED, accept: "*/*" },
+        body: { email: "a@b.c", password: REDACTED },
+        ip: "::1",
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("Bearer abc");
+  });
+});

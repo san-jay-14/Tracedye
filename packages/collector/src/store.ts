@@ -19,7 +19,10 @@ const SCHEMA = `
     threw       INTEGER,
     input       TEXT,
     output      TEXT,
-    calls       INTEGER
+    calls       INTEGER,
+    kind        TEXT,
+    target      TEXT,
+    note        TEXT
   );
   CREATE INDEX IF NOT EXISTS events_by_trigger ON events(trigger_id, seq);
   CREATE TABLE IF NOT EXISTS map_nodes (
@@ -54,8 +57,8 @@ export function openStore(path: string): Store {
 
   const insertTrigger = db.prepare("INSERT OR IGNORE INTO triggers (id, name, started_at) VALUES (?, ?, ?)");
   const insertEvent = db.prepare(`
-    INSERT INTO events (trigger_id, phase, node_id, span_id, parent_id, at_ms, duration_ms, threw, input, output, calls)
-    VALUES (@triggerId, @phase, @nodeId, @spanId, @parentId, @atMs, @durationMs, @threw, @input, @output, @calls)
+    INSERT INTO events (trigger_id, phase, node_id, span_id, parent_id, at_ms, duration_ms, threw, input, output, calls, kind, target, note)
+    VALUES (@triggerId, @phase, @nodeId, @spanId, @parentId, @atMs, @durationMs, @threw, @input, @output, @calls, @kind, @target, @note)
   `);
   const insertNode = db.prepare("INSERT INTO map_nodes (id, kind, label, file, line) VALUES (@id, @kind, @label, @file, @line)");
   const insertEdge = db.prepare("INSERT INTO map_edges (from_id, to_id, provenance) VALUES (@from, @to, @provenance)");
@@ -75,6 +78,9 @@ export function openStore(path: string): Store {
         input: event.input === undefined ? null : JSON.stringify(event.input),
         output: event.output === undefined ? null : JSON.stringify(event.output),
         calls: event.calls ?? null,
+        kind: event.kind ?? null,
+        target: event.target ?? null,
+        note: event.note ?? null,
       });
     }
   });
@@ -134,6 +140,9 @@ interface EventRow {
   input: string | null;
   output: string | null;
   calls: number | null;
+  kind: CollectorEvent["kind"] | null;
+  target: string | null;
+  note: string | null;
 }
 
 interface NodeRow {
@@ -155,6 +164,9 @@ function toEvent(row: EventRow, triggerName: string): CollectorEvent {
   if (row.input !== null) event.input = JSON.parse(row.input);
   if (row.output !== null) event.output = JSON.parse(row.output);
   if (row.calls !== null) event.calls = row.calls;
+  if (row.kind !== null) event.kind = row.kind;
+  if (row.target !== null) event.target = row.target;
+  if (row.note !== null) event.note = row.note;
   return event;
 }
 

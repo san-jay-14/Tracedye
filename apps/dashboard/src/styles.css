@@ -109,8 +109,41 @@ h1 {
 }
 
 main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.canvas {
   position: relative;
   min-height: 0;
+}
+
+/* React Flow needs a parent with a real size; absolute fill gives it one whatever the grid does. */
+.canvas > .react-flow {
+  position: absolute;
+  inset: 0;
+}
+
+aside {
+  overflow-y: auto;
+  padding: 4px 14px 14px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 800px) {
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 55vh auto;
+    overflow-y: auto;
+  }
+  aside {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 
 .empty {
@@ -172,4 +205,166 @@ footer {
 .react-flow__edge-text {
   fill: var(--inferred);
   font-size: 11px;
+}
+
+/* Side panels */
+aside h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 16px 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+aside h2 small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.72rem;
+  margin: 0 0 6px;
+}
+
+.note {
+  margin: 0 0 6px;
+  padding: 4px 8px;
+  border-left: 3px solid var(--kind-store);
+  background: color-mix(in srgb, var(--kind-store) 12%, transparent);
+}
+
+.hops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+button.hop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button.hop:hover {
+  border-color: var(--observed);
+}
+
+button.hop.selected {
+  border-color: var(--observed);
+  background: color-mix(in srgb, var(--observed) 12%, transparent);
+}
+
+.hop-n {
+  width: 1.2em;
+  color: var(--muted);
+}
+
+.hop-route {
+  flex: 1;
+}
+
+.chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  border: 1px solid currentColor;
+}
+.chip-http { color: var(--kind-app); }
+.chip-db, .chip-cache { color: var(--kind-store); }
+.chip-llm { color: var(--kind-ai); }
+.chip-ws { color: var(--kind-external); }
+.chip-note { color: var(--kind-store); }
+.chip-error { color: #e5484d; }
+
+table.diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+table.diff th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 2px 6px;
+}
+
+table.diff td {
+  padding: 3px 6px;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+  word-break: break-all;
+}
+
+.diff-tag {
+  margin-left: 6px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+tr.diff-added td { background: color-mix(in srgb, var(--observed) 16%, transparent); }
+tr.diff-removed td { background: color-mix(in srgb, #e5484d 16%, transparent); }
+tr.diff-changed td { background: color-mix(in srgb, var(--kind-store) 18%, transparent); }
+tr.diff-same td { color: var(--muted); }
+
+.stack {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.stack li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+  padding-bottom: 8px;
+}
+
+.stack-name {
+  font-weight: 600;
+}
+
+.stack-bar {
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--observed);
+  opacity: 0.6;
+}
+
+/* Packets travelling along an edge, and the hop selected in the list */
+.packet {
+  fill: var(--observed);
+  filter: drop-shadow(0 0 4px var(--observed));
+}
+
+.react-flow__edge.edge-selected .react-flow__edge-path {
+  stroke-width: 4px !important;
 }

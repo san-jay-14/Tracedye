@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
-import { printSpans } from "./spans";
+import { printSpans, spansToHops } from "./spans";
 import { openStore } from "./store";
 import type { StreamMessage } from "./types";
 import { BadRequest, parseEvents, parseMap } from "./validate";
@@ -72,7 +72,14 @@ export async function startCollector(options: { port: number; dbPath: string }):
     }
 
     if (route === "POST /v1/traces") {
-      printSpans((await readJson(req)) as Parameters<typeof printSpans>[0]);
+      const traces = (await readJson(req)) as Parameters<typeof printSpans>[0];
+      printSpans(traces);
+      const hops = spansToHops(traces);
+      if (hops.length > 0) {
+        store.addEvents(hops);
+        for (const hop of hops) broadcast({ type: "event", event: hop });
+        console.log(`[collector] stored ${hops.length} hops from spans`);
+      }
       return send(res, 200, {});
     }
 
