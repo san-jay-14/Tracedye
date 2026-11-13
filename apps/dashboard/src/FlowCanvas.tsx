@@ -38,7 +38,7 @@ export function FlowCanvas({ graph, layoutGraph, pulses, selectedEdgeId, onEdgeC
       edges={edges}
       edgeTypes={edgeTypes}
       onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
-      colorMode="system"
+      colorMode="dark"
       fitView
       fitViewOptions={{ padding: 0.12, maxZoom: 1.15 }}
       nodesConnectable={false}
