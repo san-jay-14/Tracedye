@@ -23,9 +23,9 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: calling `handleLogin()` emits events for it and the functions it calls, with durations.
 
 ## Day 5: Correlation and armed triggers
-- [ ] `AsyncLocalStorage` trigger context
-- [ ] Trigger propagation across HTTP and the WebSocket message
-- [ ] Wrappers are pass-through unless armed
+- [x] `AsyncLocalStorage` trigger context
+- [x] Trigger propagation across HTTP and the WebSocket message
+- [x] Wrappers are pass-through unless armed
 - Done when: arming "user login" and logging in tags every event with the trigger id; unarmed traffic emits nothing.
 
 ## Day 6: Redaction and overhead guards

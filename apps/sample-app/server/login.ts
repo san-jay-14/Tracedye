@@ -1,4 +1,5 @@
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+import { currentTriggerId } from "capture";
 import type { Request, Response } from "express";
 import { WebSocket } from "ws";
 import { pool } from "./db";
@@ -73,6 +74,7 @@ export function notifyClient(
   socket.send(
     JSON.stringify({
       type: "login_ok",
+      triggerId: currentTriggerId(), // set only while a trigger is armed; carries it to the client
       key: result.sessionKey,
       user: { id: result.user.id, plan: result.user.plan, segment: result.segment },
     }),

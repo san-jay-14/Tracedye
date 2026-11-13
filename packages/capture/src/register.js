@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { register } from "node:module";
 import path from "node:path";
-import "./runtime.js"; // defines globalThis.__captureWrap before any wrapped code loads
+import { installHttpTrigger } from "./runtime.js"; // also defines globalThis.__captureWrap
 
 /** @param {string} from */
 function findWorkspaceRoot(from) {
@@ -17,3 +17,5 @@ const projectDir = process.cwd();
 register("./loader.js", import.meta.url, {
   data: { projectDir, rootDir: findWorkspaceRoot(projectDir) },
 });
+
+installHttpTrigger();

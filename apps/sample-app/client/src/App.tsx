@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 interface LoginOk {
   type: "login_ok";
+  triggerId?: string;
   key: string;
   user: { id: number; plan: string; segment: string };
 }

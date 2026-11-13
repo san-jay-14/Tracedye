@@ -1,9 +1,6 @@
-import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { isProjectSource } from "./filter.js";
+import { runFixture } from "./run-fixture";
 import type { FunctionEvent } from "./runtime.js";
 
 describe("isProjectSource", () => {
@@ -29,19 +26,7 @@ describe("isProjectSource", () => {
 });
 
 describe("load-time wrapper", () => {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const fixtures = path.resolve(here, "../fixtures");
-  const tsxCli = createRequire(import.meta.url).resolve("tsx/cli");
-  const register = pathToFileURL(path.resolve(here, "register.js")).href;
-
-  const output = execFileSync(process.execPath, [tsxCli, "--import", register, "main.ts"], {
-    cwd: fixtures,
-    encoding: "utf8",
-  });
-  const { result, events } = JSON.parse(output.trim().split("\n").pop()!) as {
-    result: number;
-    events: FunctionEvent[];
-  };
+  const { result, events } = runFixture<{ result: number; events: FunctionEvent[] }>("main");
 
   const exitOf = (name: string) => events.find((e) => e.phase === "exit" && e.nodeId.includes(`:${name}:`))!;
   const enterOf = (name: string) => events.find((e) => e.phase === "enter" && e.nodeId.includes(`:${name}:`))!;
@@ -78,5 +63,9 @@ describe("load-time wrapper", () => {
 
   it("does not wrap code outside the project directory", () => {
     expect(events.some((e) => e.nodeId.includes("src/"))).toBe(false);
+  });
+
+  it("tags every event with the trigger id", () => {
+    expect(events.every((e) => e.triggerId === "t1")).toBe(true);
   });
 });
