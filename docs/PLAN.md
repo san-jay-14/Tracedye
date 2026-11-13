@@ -39,8 +39,8 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: a stored trigger can be read back in order, and a WebSocket client receives live events.
 
 ## Day 8: Canvas
-- [ ] `apps/dashboard` with React Flow rendering the static map
-- [ ] Provenance styling: observed, static, inferred
+- [x] `apps/dashboard` with React Flow rendering the static map
+- [x] Provenance styling: observed, static, inferred
 - Done when: the sample app's map renders and static-only edges look different from observed ones.
 
 ## Day 9: Live view
