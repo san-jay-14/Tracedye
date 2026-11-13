@@ -29,6 +29,7 @@ export interface Hop {
 
 // One crossing of one edge, in the order events arrived. These are what animate and what make edges observed.
 export interface Traversal {
+  index: number; // position in the events it came from
   key: string;
   from: string;
   to: string;
@@ -44,6 +45,8 @@ export interface CollapsedRow {
   nodeId: string;
   calls: number;
 }
+
+export const edgeId = (from: string, to: string) => `${from}->${to}`;
 
 const callKey = (triggerId: string, spanId: string) => `${triggerId}/${spanId}`;
 
@@ -87,14 +90,15 @@ const TARGET_KIND: Record<HopKind, MapNode["kind"]> = { http: "app", db: "store"
 export function traversalsOf(events: CollectorEvent[]): Traversal[] {
   const calls = callsOf(events);
   const traversals: Traversal[] = [];
-  for (const event of events) {
+  events.forEach((event, index) => {
     if (event.phase === "enter" && event.parentId !== undefined) {
       const parent = calls.get(callKey(event.triggerId, event.parentId));
-      if (parent) traversals.push({ key: eventKey(event), from: parent.nodeId, to: event.nodeId });
+      if (parent) traversals.push({ index, key: eventKey(event), from: parent.nodeId, to: event.nodeId });
     }
     if (event.phase === "hop" && event.target !== undefined && event.kind !== undefined) {
       const isRequest = event.kind === "http";
       traversals.push({
+        index,
         key: eventKey(event),
         from: event.nodeId,
         to: event.target,
@@ -104,10 +108,10 @@ export function traversalsOf(events: CollectorEvent[]): Traversal[] {
       // The request reaches the function that handles it: route -> handler.
       const handler = event.spanId === undefined ? undefined : calls.get(callKey(event.triggerId, event.spanId));
       if (isRequest && handler) {
-        traversals.push({ key: `${eventKey(event)}/handler`, from: event.target, to: handler.nodeId, fromKind: "app" });
+        traversals.push({ index, key: `${eventKey(event)}/handler`, from: event.target, to: handler.nodeId, fromKind: "app" });
       }
     }
-  }
+  });
   return traversals;
 }
 

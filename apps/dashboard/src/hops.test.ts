@@ -2,37 +2,9 @@ import type { CollectorEvent, MapData } from "collector/src/types";
 import { describe, expect, it } from "vitest";
 import { diffPayload } from "./diff";
 import { buildGraph } from "./graph";
+import { enter, exit, hop, login } from "./fixtures";
 import { callStackOf, dedupeEvents, hopsOf, latestTriggerId, traversalsOf } from "./hops";
 
-const base = { triggerId: "t1", triggerName: "user login" };
-const enter = (nodeId: string, spanId: string, parentId?: string, input?: unknown, atMs = 0): CollectorEvent => ({
-  ...base, phase: "enter", nodeId, spanId, parentId, input, atMs,
-});
-const exit = (nodeId: string, spanId: string, output?: unknown, durationMs = 1): CollectorEvent => ({
-  ...base, phase: "exit", nodeId, spanId, output, durationMs,
-});
-const hop = (kind: NonNullable<CollectorEvent["kind"]>, nodeId: string, target: string, spanId: string, atMs: number, note?: string): CollectorEvent => ({
-  ...base, phase: "hop", kind, nodeId, target, spanId, atMs, note,
-});
-
-// A login in miniature: the request arrives, then Postgres, the LLM, Redis and the client are called.
-const login: CollectorEvent[] = [
-  enter("handleLogin", "1", undefined, { req: { method: "POST" } }, 1),
-  hop("http", "client", "POST /login", "1", 1),
-  enter("validate", "2", "1", { email: "a@b.c", password: "[REDACTED]" }, 2),
-  hop("db", "validate", "postgres", "2", 3),
-  exit("validate", "2", { id: 1, email: "a@b.c", plan: "pro" }),
-  enter("classify", "3", "1", { plan: "pro" }, 4),
-  hop("llm", "classify", "llm", "3", 5, "stub"),
-  exit("classify", "3", { segment: "power-user" }),
-  enter("createSession", "4", "1", { segment: "power-user" }, 6),
-  hop("cache", "createSession", "redis", "4", 7),
-  exit("createSession", "4", "session:abc"),
-  enter("notifyClient", "5", "1", { result: { key: "session:abc" } }, 8),
-  hop("ws", "notifyClient", "client", "5", 9),
-  exit("notifyClient", "5", undefined),
-  exit("handleLogin", "1", undefined, 20),
-];
 
 describe("hopsOf", () => {
   const hops = hopsOf(login);
@@ -132,7 +104,7 @@ describe("callStackOf", () => {
   });
 
   it("reports functions that were collapsed", () => {
-    const events = [...login, { ...base, phase: "collapsed" as const, nodeId: "tick", calls: 25 }];
+    const events = [...login, { triggerId: "t1", triggerName: "user login", phase: "collapsed" as const, nodeId: "tick", calls: 25 }];
     expect(callStackOf(events, "t1").collapsed).toEqual([{ nodeId: "tick", calls: 25 }]);
   });
 

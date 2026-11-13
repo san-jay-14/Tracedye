@@ -1,5 +1,5 @@
 import type { CollectorEvent, MapData, MapNode, Provenance } from "collector/src/types";
-import { labelOf, traversalsOf } from "./hops";
+import { edgeId, labelOf, traversalsOf } from "./hops";
 
 export interface GraphNode extends MapNode {
   // True once a runtime event has shown this node running. Unseen nodes are static only.
@@ -18,7 +18,6 @@ export interface Graph {
   edges: GraphEdge[];
 }
 
-const edgeId = (from: string, to: string) => `${from}->${to}`;
 
 // Combines the static map with what actually ran. An edge is observed only if a runtime
 // event shows that call; everything else keeps the provenance the map gave it, so a

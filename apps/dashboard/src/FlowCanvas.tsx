@@ -10,14 +10,16 @@ const edgeTypes = { packet: PacketEdge };
 
 interface Props {
   graph: Graph;
+  // Where nodes go. Replay passes the whole trigger here so nothing moves while stepping.
+  layoutGraph?: Graph;
   pulses: Record<string, number>;
   selectedEdgeId?: string;
   onEdgeClick: (edgeId: string) => void;
 }
 
-export function FlowCanvas({ graph, pulses, selectedEdgeId, onEdgeClick }: Props) {
+export function FlowCanvas({ graph, layoutGraph, pulses, selectedEdgeId, onEdgeClick }: Props) {
   // Positions and labels only change with the graph itself, not with every packet.
-  const base = useMemo(() => toFlow(graph), [graph]);
+  const base = useMemo(() => toFlow(graph, layoutGraph ?? graph), [graph, layoutGraph]);
   const edges = useMemo(
     () =>
       base.edges.map((edge) => ({
@@ -31,7 +33,7 @@ export function FlowCanvas({ graph, pulses, selectedEdgeId, onEdgeClick }: Props
   return (
     // Keyed by node count so the view re-fits when the map arrives or grows (fitView only runs on mount).
     <ReactFlow
-      key={base.nodes.length}
+      key={(layoutGraph ?? graph).nodes.length}
       nodes={base.nodes}
       edges={edges}
       edgeTypes={edgeTypes}
@@ -47,8 +49,8 @@ export function FlowCanvas({ graph, pulses, selectedEdgeId, onEdgeClick }: Props
   );
 }
 
-function toFlow(graph: Graph): { nodes: Node[]; edges: Edge[] } {
-  const positions = layoutNodes(graph.nodes, graph.edges);
+function toFlow(graph: Graph, layoutGraph: Graph): { nodes: Node[]; edges: Edge[] } {
+  const positions = layoutNodes(layoutGraph.nodes, layoutGraph.edges);
 
   const nodes: Node[] = graph.nodes.map((node) => ({
     id: node.id,

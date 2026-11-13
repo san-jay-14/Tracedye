@@ -1,6 +1,6 @@
 import type { CollectorEvent } from "collector/src/types";
 import { useEffect, useRef, useState } from "react";
-import { dedupeEvents, traversalsOf } from "./hops";
+import { dedupeEvents, edgeId, traversalsOf } from "./hops";
 
 const STAGGER_MS = 320; // gap between packets, so a burst of events reads as a journey
 
@@ -22,7 +22,7 @@ export function usePulses(live: CollectorEvent[]): Record<string, number> {
     for (const traversal of fresh) {
       const at = Math.max(now, nextSlot.current);
       nextSlot.current = at + STAGGER_MS;
-      const edge = `${traversal.from}->${traversal.to}`;
+      const edge = edgeId(traversal.from, traversal.to);
       timers.current.push(setTimeout(() => setPulses((p) => ({ ...p, [edge]: (p[edge] ?? 0) + 1 })), at - now));
     }
   }, [live]);

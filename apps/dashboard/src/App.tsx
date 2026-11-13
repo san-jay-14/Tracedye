@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlowCanvas } from "./FlowCanvas";
 import { buildGraph } from "./graph";
 import { callStackOf, dedupeEvents, hopsOf, latestTriggerId } from "./hops";
+import { ReplayBar } from "./ReplayBar";
+import { buildReplayGraph, stepEdgeIds } from "./replay";
+import { useReplay } from "./useReplay";
 import { CallStack, HopList, PayloadDiff } from "./Panels";
 import { EDGE_LOOK, PROVENANCE_DESCRIPTION } from "./provenance";
 import { useCollector } from "./useCollector";
@@ -10,17 +13,37 @@ import { usePulses } from "./usePulses";
 export function App() {
   const { connected, map, stored, live, armed } = useCollector();
   const events = useMemo(() => dedupeEvents([...stored, ...live]), [stored, live]);
-  const graph = useMemo(() => buildGraph(map, events), [map, events]);
-  const pulses = usePulses(live);
+  const replay = useReplay(events);
+  const replaying = replay.position !== null;
 
-  // The panels follow the latest trigger.
-  const triggerId = latestTriggerId(events);
-  const triggerEvents = useMemo(() => events.filter((e) => e.triggerId === triggerId), [events, triggerId]);
+  // Live, the canvas shows everything stored; replaying, only the chosen trigger up to the current step.
+  const liveGraph = useMemo(() => buildGraph(map, events), [map, events]);
+  const replayGraph = useMemo(
+    () => (replay.shownEvents ? buildReplayGraph(map, replay.ordered, replay.shownEvents) : undefined),
+    [map, replay.ordered, replay.shownEvents],
+  );
+  const graph = replayGraph?.graph ?? liveGraph;
+
+  const livePulses = usePulses(live);
+  const replayPulses = useMemo(
+    () => Object.fromEntries(stepEdgeIds(replay.currentStep).map((id) => [id, replay.position ?? 0])),
+    [replay.currentStep, replay.position],
+  );
+  const pulses = replaying ? replayPulses : livePulses;
+
+  // The panels follow the latest trigger, or the replayed one up to the current step.
+  const triggerId = replaying ? replay.triggerId : latestTriggerId(events);
+  const triggerEvents = useMemo(
+    () => (replay.shownEvents ?? events).filter((e) => e.triggerId === triggerId),
+    [events, replay.shownEvents, triggerId],
+  );
   const hops = useMemo(() => hopsOf(triggerEvents), [triggerEvents]);
   const stack = useMemo(() => callStackOf(triggerEvents, triggerId ?? ""), [triggerEvents, triggerId]);
 
   const [selectedId, setSelectedId] = useState<string>();
-  const selected = hops.find((hop) => hop.id === selectedId) ?? hops[0];
+  // Stepping clears a manual choice, so the payload follows the hop the replay just reached.
+  useEffect(() => setSelectedId(undefined), [replay.position]);
+  const selected = hops.find((hop) => hop.id === selectedId) ?? (replaying ? hops.at(-1) : hops[0]);
   const selectedEdgeId = selected && `${selected.from}->${selected.to}`;
 
   const selectEdge = (edgeId: string) => {
@@ -67,7 +90,7 @@ export function App() {
               {connected ? "No map yet. Run the indexer and POST its output to the collector." : "Waiting for the collector."}
             </p>
           ) : (
-            <FlowCanvas graph={graph} pulses={pulses} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
+            <FlowCanvas graph={graph} layoutGraph={replayGraph?.layout} pulses={pulses} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
           )}
         </section>
 
@@ -85,6 +108,8 @@ export function App() {
           <CallStack rows={stack.rows} collapsed={stack.collapsed} />
         </aside>
       </main>
+
+      <ReplayBar replay={replay} />
 
       <footer>Supported stack (v1): TypeScript on Node with Express, React (Vite), Postgres, Redis and one LLM call.</footer>
     </div>

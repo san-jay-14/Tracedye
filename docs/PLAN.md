@@ -50,7 +50,7 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: a real login animates through all five hops and each hop shows its before and after payload.
 
 ## Day 10: Replay
-- [ ] Scrub and replay stored triggers
+- [x] Scrub and replay stored triggers
 - Done when: a past login can be replayed step by step.
 
 ## Day 11: Large-repo benchmark
