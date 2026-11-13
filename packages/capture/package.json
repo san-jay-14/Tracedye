@@ -2,10 +2,9 @@
   "name": "capture",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.18" },
   "exports": {
     ".": "./src/index.ts",
-    "./register": "./src/register.ts"
+    "./register": "./src/register.js"
   },
   "scripts": {
     "typecheck": "tsc -p .",

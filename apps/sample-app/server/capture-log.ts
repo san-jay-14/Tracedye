@@ -1,6 +1,4 @@
-// Loaded with `--import`, after otel.ts. Wraps this app's functions and prints each
-// enter and exit. Day 7 sends these events to the collector instead.
-import "capture/register";
+// Prints each captured function enter and exit. Day 7 sends these to the collector instead.
 import { onEvent } from "capture";
 
 onEvent((event) => {

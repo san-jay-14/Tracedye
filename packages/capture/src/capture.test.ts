@@ -3,8 +3,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isProjectSource } from "./filter";
-import type { FunctionEvent } from "./runtime";
+import { isProjectSource } from "./filter.js";
+import type { FunctionEvent } from "./runtime.js";
 
 describe("isProjectSource", () => {
   const dir = "/repo/app";
@@ -32,7 +32,7 @@ describe("load-time wrapper", () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const fixtures = path.resolve(here, "../fixtures");
   const tsxCli = createRequire(import.meta.url).resolve("tsx/cli");
-  const register = pathToFileURL(path.resolve(here, "register.ts")).href;
+  const register = pathToFileURL(path.resolve(here, "register.js")).href;
 
   const output = execFileSync(process.execPath, [tsxCli, "--import", register, "main.ts"], {
     cwd: fixtures,

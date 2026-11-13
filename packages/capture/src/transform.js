@@ -1,9 +1,16 @@
+// Plain JavaScript (types in JSDoc, checked by tsc), see filter.js.
 import ts from "typescript";
 
-// Compiles TypeScript to ESM and wraps the same named functions the indexer maps:
-// top-level function declarations, and variables initialised with an arrow or
-// function expression. Ids use the line in the original source.
-export function wrapSource(source: string, fileName: string, relativePath: string): string {
+/**
+ * Compiles TypeScript to ESM and wraps the same named functions the indexer maps:
+ * top-level function declarations, and variables initialised with an arrow or
+ * function expression. Ids use the line in the original source.
+ * @param {string} source
+ * @param {string} fileName
+ * @param {string} relativePath
+ * @returns {string}
+ */
+export function wrapSource(source, fileName, relativePath) {
   const result = ts.transpileModule(source, {
     fileName,
     compilerOptions: {
@@ -16,10 +23,16 @@ export function wrapSource(source: string, fileName: string, relativePath: strin
   return result.outputText;
 }
 
-function wrapTransformer(context: ts.TransformationContext, relativePath: string): ts.Transformer<ts.SourceFile> {
+/**
+ * @param {ts.TransformationContext} context
+ * @param {string} relativePath
+ * @returns {ts.Transformer<ts.SourceFile>}
+ */
+function wrapTransformer(context, relativePath) {
   const { factory } = context;
 
-  const wrapCall = (id: string, fn: ts.Expression) =>
+  /** @param {string} id @param {ts.Expression} fn */
+  const wrapCall = (id, fn) =>
     factory.createCallExpression(
       factory.createPropertyAccessExpression(factory.createIdentifier("globalThis"), "__captureWrap"),
       undefined,
@@ -27,14 +40,21 @@ function wrapTransformer(context: ts.TransformationContext, relativePath: string
     );
 
   return (sourceFile) => {
-    const idOf = (name: string, node: ts.Node) => {
+    /** @param {string} name @param {ts.Node} node */
+    const idOf = (name, node) => {
       const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
       return `${relativePath}:${name}:${line}`;
     };
 
-    const visit = (node: ts.Node): ts.Node => {
-      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && isWrappableExpression(node.initializer)) {
-        const initializer = ts.visitNode(node.initializer, visit) as ts.Expression;
+    /** @param {ts.Node} node @returns {ts.Node} */
+    const visit = (node) => {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer &&
+        isWrappableExpression(node.initializer)
+      ) {
+        const initializer = /** @type {ts.Expression} */ (ts.visitNode(node.initializer, visit));
         return factory.updateVariableDeclaration(
           node,
           node.name,
@@ -47,7 +67,7 @@ function wrapTransformer(context: ts.TransformationContext, relativePath: string
     };
 
     const statements = sourceFile.statements.flatMap((statement) => {
-      const visited = ts.visitNode(statement, visit) as ts.Statement;
+      const visited = /** @type {ts.Statement} */ (ts.visitNode(statement, visit));
       if (!ts.isFunctionDeclaration(statement) || !statement.name || !statement.body || statement.asteriskToken) {
         return [visited];
       }
@@ -67,8 +87,8 @@ function wrapTransformer(context: ts.TransformationContext, relativePath: string
   };
 }
 
-function isWrappableExpression(node: ts.Expression | undefined): node is ts.ArrowFunction | ts.FunctionExpression {
-  if (!node) return false;
+/** @param {ts.Expression} node @returns {boolean} */
+function isWrappableExpression(node) {
   if (ts.isArrowFunction(node)) return true;
   return ts.isFunctionExpression(node) && !node.asteriskToken;
 }

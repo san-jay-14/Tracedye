@@ -1,2 +1,2 @@
-export { onEvent, wrapFunction } from "./runtime";
-export type { FunctionEvent } from "./runtime";
+export { onEvent, wrapFunction } from "./runtime.js";
+export type { FunctionEvent } from "./runtime.js";

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:server": "tsx --import ./server/otel.ts --import ./server/capture.ts server/index.ts",
+    "dev:server": "tsx --import ./server/otel.mjs --import capture/register server/index.ts",
     "dev:client": "vite client",
     "typecheck": "tsc -p server && tsc -p client"
   },
