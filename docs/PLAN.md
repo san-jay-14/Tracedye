@@ -18,8 +18,8 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: indexing the sample app lists its functions and the main login call chain, and a test asserts it.
 
 ## Day 4: Function wrapper
-- [ ] Load-time transform in `packages/capture` wrapping project functions with enter and exit events
-- [ ] Excludes `node_modules`, tests and generated files
+- [x] Load-time transform in `packages/capture` wrapping project functions with enter and exit events
+- [x] Excludes `node_modules`, tests and generated files
 - Done when: calling `handleLogin()` emits events for it and the functions it calls, with durations.
 
 ## Day 5: Correlation and armed triggers
