@@ -34,8 +34,8 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: tests show passwords and tokens never leave the process, and the package throws under `NODE_ENV=production`.
 
 ## Day 7: Store and stream
-- [ ] Collector stores events in SQLite
-- [ ] WebSocket `/stream` pushes map, events and trigger state
+- [x] Collector stores events in SQLite
+- [x] WebSocket `/stream` pushes map, events and trigger state
 - Done when: a stored trigger can be read back in order, and a WebSocket client receives live events.
 
 ## Day 8: Canvas

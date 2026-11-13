@@ -17,7 +17,12 @@ type FunctionNode = Node; // FunctionDeclaration, ArrowFunction or FunctionExpre
 
 export function indexProject(tsConfigFilePath: string, rootDir: string): MapOutput {
   const project = new Project({ tsConfigFilePath });
-  const files = project.getSourceFiles().filter((f) => !f.isInNodeModules() && !f.isDeclarationFile());
+  // Only the project's own files: not dependencies, and not other workspace packages
+  // that TypeScript followed an import into (such as the capture tool itself).
+  const projectDir = path.dirname(path.resolve(tsConfigFilePath)) + path.sep;
+  const files = project
+    .getSourceFiles()
+    .filter((f) => !f.isInNodeModules() && !f.isDeclarationFile() && f.getFilePath().startsWith(projectDir.replaceAll("\\", "/")));
 
   const relative = (file: SourceFile) => path.relative(rootDir, file.getFilePath()).replaceAll("\\", "/");
   const nodes = new Map<string, MapNode>();

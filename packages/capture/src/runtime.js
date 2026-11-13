@@ -17,6 +17,7 @@ if (process.env.NODE_ENV === "production") {
  * @typedef {object} FunctionEvent
  * @property {"enter" | "exit"} phase
  * @property {string} triggerId the trigger instance this call belongs to
+ * @property {string} triggerName the armed trigger's name, e.g. "user login"
  * @property {string} nodeId "file:name:line", the same id the indexer produces
  * @property {string} spanId
  * @property {string} [parentId]
@@ -33,6 +34,7 @@ if (process.env.NODE_ENV === "production") {
  * @typedef {object} CollapsedEvent
  * @property {"collapsed"} phase
  * @property {string} triggerId
+ * @property {string} triggerName
  * @property {string} nodeId
  * @property {number} calls total calls in the trigger, including the ones that were emitted
  */
@@ -42,6 +44,7 @@ if (process.env.NODE_ENV === "production") {
 /**
  * @typedef {object} TriggerContext
  * @property {string} triggerId
+ * @property {string} triggerName
  * @property {string} [spanId] the innermost wrapped call currently running
  */
 
@@ -95,7 +98,7 @@ export function disarm() {
  * @returns {T}
  */
 export function runInTrigger(triggerId, fn) {
-  return context.run({ triggerId }, fn);
+  return context.run({ triggerId, triggerName: armedName ?? triggerId }, fn);
 }
 
 /** The id of the trigger the current call belongs to, if any. @returns {string | undefined} */
@@ -122,7 +125,7 @@ export function installHttpTrigger() {
     const { request } = /** @type {{ request: import("node:http").IncomingMessage }} */ (message);
     const header = request.headers["x-trigger-id"];
     const supplied = typeof header === "string" && /^[\w.:-]{1,64}$/.test(header) ? header : undefined;
-    context.enterWith({ triggerId: supplied ?? mintTriggerId(armedName) });
+    context.enterWith({ triggerId: supplied ?? mintTriggerId(armedName), triggerName: armedName });
   });
 }
 
@@ -190,13 +193,13 @@ function redactedOutput(functionName, output) {
 }
 
 // Called when a trigger's outermost call returns: reports and forgets the call counts.
-/** @param {string} triggerId */
-function flushCollapsed(triggerId) {
+/** @param {string} triggerId @param {string} triggerName */
+function flushCollapsed(triggerId, triggerName) {
   const counts = callCounts.get(triggerId);
   callCounts.delete(triggerId);
   if (!counts) return;
   for (const [nodeId, calls] of counts) {
-    if (calls > COLLAPSE_AFTER) emit({ phase: "collapsed", triggerId, nodeId, calls });
+    if (calls > COLLAPSE_AFTER) emit({ phase: "collapsed", triggerId, triggerName, nodeId, calls });
   }
 }
 
@@ -218,7 +221,7 @@ export function wrapFunction(nodeId, fn, paramNames = []) {
     const current = context.getStore();
     if (!current) return fn.apply(this, args);
 
-    const { triggerId } = current;
+    const { triggerId, triggerName } = current;
     let counts = callCounts.get(triggerId);
     if (!counts) callCounts.set(triggerId, (counts = new Map()));
     const calls = (counts.get(nodeId) ?? 0) + 1;
@@ -232,6 +235,7 @@ export function wrapFunction(nodeId, fn, paramNames = []) {
     emit({
       phase: "enter",
       triggerId,
+      triggerName,
       nodeId,
       spanId,
       parentId,
@@ -245,6 +249,7 @@ export function wrapFunction(nodeId, fn, paramNames = []) {
       emit({
         phase: "exit",
         triggerId,
+        triggerName,
         nodeId,
         spanId,
         parentId,
@@ -253,13 +258,13 @@ export function wrapFunction(nodeId, fn, paramNames = []) {
         output: threw ? undefined : redactedOutput(name, output),
         threw,
       });
-      if (parentId === undefined) flushCollapsed(triggerId);
+      if (parentId === undefined) flushCollapsed(triggerId, triggerName);
     };
 
     /** @type {unknown} */
     let result;
     try {
-      result = context.run({ triggerId, spanId }, () => fn.apply(this, args));
+      result = context.run({ triggerId, triggerName, spanId }, () => fn.apply(this, args));
     } catch (error) {
       finish({ threw: true });
       throw error;

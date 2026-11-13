@@ -67,6 +67,7 @@ describe("load-time wrapper", () => {
 
   it("tags every event with the trigger id", () => {
     expect(events.every((e) => e.triggerId === "t1")).toBe(true);
+    expect(events.every((e) => e.triggerName === "fixture")).toBe(true);
   });
 });
 

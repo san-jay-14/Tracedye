@@ -40,6 +40,10 @@ describe("indexProject on the sample app", () => {
     expect(map.edges.some((e) => e.to === email)).toBe(false);
   });
 
+  it("maps only the project's own files, not workspace packages it imports", () => {
+    expect(map.nodes.every((n) => !n.file || n.file.startsWith(`${server}/`))).toBe(true);
+  });
+
   it("marks every edge static", () => {
     expect(map.edges.length).toBeGreaterThan(0);
     expect(map.edges.every((e) => e.provenance === "static")).toBe(true);

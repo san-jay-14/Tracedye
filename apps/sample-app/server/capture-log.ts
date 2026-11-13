@@ -1,38 +1,57 @@
-// Dev wiring for capture. Placeholder until Day 7: events are printed instead of sent
-// to the collector, and arming is a tiny HTTP control port instead of the dashboard.
-//   curl -X POST localhost:3002/arm/user%20login      curl -X POST localhost:3002/disarm
-import { createServer } from "node:http";
-import { arm, disarm, onEvent } from "capture";
+// Dev wiring between capture and the collector, until capture ships its own exporter:
+// events are batched to POST /events, and the armed state is polled from GET /state.
+import { arm, disarm, onEvent, type CaptureEvent } from "capture";
 
-const short = (value: unknown) => {
-  const json = JSON.stringify(value) ?? "undefined";
-  return json.length > 160 ? `${json.slice(0, 160)}…` : json;
-};
+const COLLECTOR_URL = process.env.COLLECTOR_URL ?? "http://localhost:4318";
+const FLUSH_MS = 100;
+const POLL_MS = 500;
+
+let buffer: CaptureEvent[] = [];
+let flushTimer: NodeJS.Timeout | undefined;
+let warned = false;
+
+function warnOnce(message: string) {
+  if (warned) return;
+  warned = true;
+  console.warn(`[capture] ${message}`);
+}
+
+async function flush() {
+  flushTimer = undefined;
+  const batch = buffer;
+  buffer = [];
+  try {
+    const response = await fetch(`${COLLECTOR_URL}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(batch),
+    });
+    if (!response.ok) warnOnce(`collector rejected events: ${response.status}`);
+  } catch {
+    warnOnce(`collector not reachable at ${COLLECTOR_URL}; dropping events`);
+  }
+}
 
 onEvent((event) => {
-  if (event.phase === "collapsed") {
-    console.log(`[fn] ${event.triggerId} collapsed ${event.nodeId} calls=${event.calls}`);
-    return;
-  }
-  const detail =
-    event.phase === "enter"
-      ? ` in=${short(event.input)}`
-      : ` ${event.durationMs?.toFixed(1)}ms${event.threw ? " threw" : ` out=${short(event.output)}`}`;
-  console.log(
-    `[fn] ${event.triggerId} ${event.phase.padEnd(5)} span=${event.spanId} parent=${event.parentId ?? "-"} ${event.nodeId}${detail}`,
-  );
+  buffer.push(event);
+  flushTimer ??= setTimeout(flush, FLUSH_MS);
 });
 
-const CONTROL_PORT = Number(process.env.CAPTURE_CONTROL_PORT ?? 3002);
+let armedName: string | null = null;
 
-createServer((req, res) => {
-  const [, action, name] = (req.url ?? "").split("/");
-  if (req.method !== "POST" || (action !== "arm" && action !== "disarm")) {
-    res.writeHead(404).end();
-    return;
+async function syncArmedState() {
+  let next: string | null = null;
+  try {
+    const response = await fetch(`${COLLECTOR_URL}/state`);
+    next = ((await response.json()) as { armed: string | null }).armed;
+  } catch {
+    // Collector unreachable: stay disarmed rather than pay for events nobody receives.
   }
-  if (action === "arm") arm(decodeURIComponent(name ?? ""));
-  else disarm();
-  console.log(`[capture] ${action === "arm" ? `armed "${decodeURIComponent(name ?? "")}"` : "disarmed"}`);
-  res.end("ok");
-}).listen(CONTROL_PORT, "127.0.0.1");
+  if (next === armedName) return;
+  armedName = next;
+  if (next === null) disarm();
+  else arm(next);
+  console.log(`[capture] ${next === null ? "disarmed" : `armed "${next}"`}`);
+}
+
+setInterval(syncArmedState, POLL_MS).unref();
