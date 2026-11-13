@@ -1,33 +1,50 @@
+/* Ink on paper. Green only ever means "this happened" or "success"; red only ever means
+   "error" or "removed". Everything else is a shade of the ink. */
 :root {
-  --bg: #f6f7f9;
-  --panel: #ffffff;
-  --text: #1c2330;
-  --muted: #667085;
-  --border: #d5dae2;
-  --observed: #0f9d6b;
-  --static: #7a8494;
-  --inferred: #8a5cf6;
-  --kind-app: #2f6fed;
-  --kind-store: #c47a12;
-  --kind-ai: #8a5cf6;
-  --kind-external: #667085;
+  --paper: #ffffff;
+  --surface: #ffffff;
+  --subtle: #f4f4f5;
+  --text: #0a0a0a;
+  --muted: #6b6b70;
+  --faint: #a1a1a6;
+  --line: rgba(10, 10, 10, 0.09);
+  --line-strong: rgba(10, 10, 10, 0.2);
+  --dot: rgba(10, 10, 10, 0.13);
+
+  --observed: #16a34a;
+  --observed-soft: rgba(22, 163, 74, 0.1);
+  --error: #dc2626;
+  --error-soft: rgba(220, 38, 38, 0.08);
+  --static: #8a8a8f;
+  --inferred: #3f3f46;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 10px 28px rgba(0, 0, 0, 0.07);
+  --font-ui: "Geist Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1218;
-    --panel: #171c26;
-    --text: #e6e9ef;
-    --muted: #98a2b3;
-    --border: #2b3342;
-    --observed: #34d399;
-    --static: #8d97a8;
-    --inferred: #a78bfa;
-    --kind-app: #6b9bff;
-    --kind-store: #e5a13c;
-    --kind-ai: #a78bfa;
-    --kind-external: #98a2b3;
+    --paper: #09090a;
+    --surface: #0f0f11;
+    --subtle: #19191c;
+    --text: #fafafa;
+    --muted: #a0a0a6;
+    --faint: #6b6b70;
+    --line: rgba(255, 255, 255, 0.1);
+    --line-strong: rgba(255, 255, 255, 0.22);
+    --dot: rgba(255, 255, 255, 0.11);
+
+    --observed: #3ecf6e;
+    --observed-soft: rgba(62, 207, 110, 0.12);
+    --error: #ff6b6b;
+    --error-soft: rgba(255, 107, 107, 0.11);
+    --static: #8b8b90;
+    --inferred: #d4d4d8;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45);
     color-scheme: dark;
   }
 }
@@ -44,73 +61,40 @@ body,
 }
 
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1, "cv11" 1;
 }
 
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Layout */
 .app {
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  grid-template-rows: 52px minmax(0, 1fr);
   height: 100%;
-}
-
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
-  padding: 10px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-}
-
-h1 {
-  font-size: 1rem;
-  margin: 0;
-}
-
-.status {
-  font-size: 0.8rem;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-.status.on {
-  color: var(--observed);
-  border-color: var(--observed);
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  list-style: none;
-  margin: 0 0 0 auto;
-  padding: 0;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.legend li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.swatch-unseen {
-  width: 22px;
-  height: 12px;
-  border: 1.5px dashed var(--static);
-  border-radius: 3px;
-  opacity: 0.6;
 }
 
 main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr) 390px;
   grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
@@ -118,6 +102,7 @@ main {
 .canvas {
   position: relative;
   min-height: 0;
+  background: var(--paper);
 }
 
 /* React Flow needs a parent with a real size; absolute fill gives it one whatever the grid does. */
@@ -126,338 +111,778 @@ main {
   inset: 0;
 }
 
-aside {
-  overflow-y: auto;
-  padding: 4px 14px 14px;
-  background: var(--panel);
-  border-left: 1px solid var(--border);
-  font-size: 0.82rem;
+/* Top bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
-@media (max-width: 800px) {
-  main {
-    grid-template-columns: 1fr;
-    grid-template-rows: 55vh auto;
-    overflow-y: auto;
-  }
-  aside {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-}
-
-.empty {
+.wordmark {
   margin: 0;
-  padding: 24px 16px;
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.wordmark em {
+  font-style: italic;
+}
+
+.topbar .status {
+  margin-left: auto;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
   color: var(--muted);
 }
 
-footer {
-  padding: 6px 16px;
-  font-size: 0.75rem;
-  color: var(--muted);
-  background: var(--panel);
-  border-top: 1px solid var(--border);
+.status .dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
 }
 
-/* React Flow nodes: colored by kind; a node that never ran is dashed and faded. */
-.react-flow__node.node {
-  background: var(--panel);
+.status.armed {
   color: var(--text);
-  border: 2px solid var(--kind-app);
+}
+
+.status.armed .dot {
+  background: var(--observed);
+  animation: ring 2s ease-out infinite;
+}
+
+.status.offline {
+  color: var(--error);
+}
+
+.status.offline .dot {
+  background: var(--error);
+}
+
+@keyframes ring {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--observed) 50%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status.armed .dot {
+    animation: none;
+  }
+}
+
+/* Controls shared by the top bar and the transport */
+input,
+select,
+button {
+  font: inherit;
+  color: var(--text);
+}
+
+input,
+select {
+  height: 30px;
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: 8px;
-  padding: 6px 10px;
+}
+
+input:disabled {
+  color: var(--muted);
+  background: var(--subtle);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+button.primary,
+button.secondary,
+button.live {
+  height: 30px;
+  padding: 0 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+button.primary {
+  background: var(--text);
+  color: var(--paper);
+}
+
+button.primary:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+button.secondary,
+button.live {
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+button.secondary:hover,
+button.live:hover {
+  background: var(--subtle);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trigger input {
+  width: 190px;
+}
+
+.inline-error {
+  color: var(--error);
+  font-size: 12px;
+}
+
+/* Legend, floating over the canvas */
+.legend {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 8px 14px;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch-unseen {
+  width: 20px;
+  height: 11px;
+  border: 1px dashed var(--static);
+  border-radius: 4px;
+}
+
+/* Nodes: what ran is drawn in full ink, what did not is dashed and quiet. Kinds are written out, not coloured. */
+.react-flow__node.node {
+  padding: 8px 12px;
   text-align: left;
-  font-size: 0.8rem;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .node strong {
   display: block;
+  overflow: hidden;
   font-weight: 600;
+  letter-spacing: -0.005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .node small {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   color: var(--muted);
-  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.react-flow__node.node-app {
-  border-color: var(--kind-app);
-}
-.react-flow__node.node-store {
-  border-color: var(--kind-store);
-}
-.react-flow__node.node-ai {
-  border-color: var(--kind-ai);
-}
-.react-flow__node.node-external {
-  border-color: var(--kind-external);
+.react-flow__node.node-seen {
+  border-color: var(--text);
 }
 
 .react-flow__node.node-unseen {
+  color: var(--muted);
+  background: transparent;
   border-style: dashed;
-  opacity: 0.55;
+  box-shadow: none;
+}
+
+.react-flow__node.node-store {
+  padding-left: 16px;
+  border-radius: 999px;
+}
+
+.react-flow__node.node-external.node-seen {
+  color: var(--paper);
+  background: var(--text);
+}
+
+.react-flow__node.node-external.node-seen small {
+  color: color-mix(in srgb, var(--paper) 65%, transparent);
+}
+
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .react-flow__edge-textbg {
-  fill: var(--panel);
+  fill: var(--paper);
 }
+
 .react-flow__edge-text {
-  fill: var(--inferred);
-  font-size: 11px;
+  fill: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 
-/* Side panels */
-aside h2 {
+.react-flow__edge.edge-selected .react-flow__edge-path {
+  stroke-width: 3.5px !important;
+}
+
+.react-flow__attribution {
+  font-size: 10px;
+  background: transparent;
+  opacity: 0.55;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.react-flow__controls-button {
+  color: var(--text);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--subtle);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+/* A packet travelling along an edge: the one lively thing on the page. */
+.packet {
+  fill: var(--observed);
+  stroke: var(--paper);
+  stroke-width: 2px;
+}
+
+/* Replay transport, floating over the canvas */
+.transport {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 22px;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 16px 0 8px;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  width: min(880px, calc(100% - 32px));
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
 }
 
-aside h2 small {
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 400;
+.transport select {
+  max-width: 230px;
+  font-size: 12px;
 }
 
-.muted {
-  color: var(--muted);
+.controls {
+  display: flex;
+  gap: 2px;
 }
 
-.small {
-  font-size: 0.72rem;
-  margin: 0 0 6px;
+.controls button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
 }
 
-.note {
-  margin: 0 0 6px;
-  padding: 4px 8px;
-  border-left: 3px solid var(--kind-store);
-  background: color-mix(in srgb, var(--kind-store) 12%, transparent);
+.controls button:not(:disabled):hover {
+  background: var(--subtle);
 }
 
-.hops {
-  list-style: none;
+.controls button.play {
+  color: var(--paper);
+  background: var(--text);
+  border-radius: 50%;
+}
+
+.controls button.play:not(:disabled):hover {
+  background: var(--text);
+  opacity: 0.85;
+}
+
+.timeline {
+  position: relative;
+  display: flex;
+  flex: 1 1 160px;
+  align-items: center;
+  min-width: 140px;
+  height: 30px;
+}
+
+.timeline input[type="range"] {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 30px;
   margin: 0;
   padding: 0;
+  background: transparent;
+  border: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.timeline input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--line-strong);
+  border-radius: 2px;
+}
+
+.timeline input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--line-strong);
+  border-radius: 2px;
+}
+
+.timeline input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  background: var(--paper);
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  -webkit-appearance: none;
+}
+
+.timeline input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--paper);
+  border: 2px solid var(--text);
+  border-radius: 50%;
+}
+
+.ticks {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  left: 7px;
+  height: 0;
+  pointer-events: none;
+}
+
+.tick {
+  position: absolute;
+  top: -4px;
+  left: calc(var(--at) * 100%);
+  width: 1px;
+  height: 8px;
+  margin-left: -0.5px;
+  background: var(--line-strong);
+}
+
+.tick.hop {
+  top: -8px;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  background: var(--muted);
+}
+
+.tick.done {
+  background: var(--observed);
+}
+
+.step-label {
+  flex: 0 1 280px;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Empty canvas */
+.empty {
+  position: absolute;
+  inset: 0;
   display: grid;
-  gap: 4px;
+  gap: 8px;
+  place-content: center;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty p {
+  max-width: 36ch;
+  margin: 0 auto;
+}
+
+.empty .empty-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+/* Inspector */
+.inspector {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+}
+
+.panel {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-note,
+.hint {
+  margin: 0;
+  color: var(--muted);
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 11.5px;
+}
+
+.notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  background: var(--subtle);
+  border-radius: 8px;
+}
+
+.stack-note {
+  margin: 0;
+  padding: 16px 20px 24px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.tag {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+}
+
+.tag.error {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 45%, transparent);
+}
+
+/* Hops */
+.hops {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 button.hop {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  gap: 8px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 9px 10px;
   text-align: left;
-  font: inherit;
-  color: var(--text);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 10px;
 }
 
 button.hop:hover {
-  border-color: var(--observed);
+  background: var(--subtle);
 }
 
 button.hop.selected {
-  border-color: var(--observed);
-  background: color-mix(in srgb, var(--observed) 12%, transparent);
+  background: var(--subtle);
+  border-color: var(--line);
+  box-shadow: inset 2px 0 0 var(--observed);
 }
 
 .hop-n {
-  width: 1.2em;
-  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.hop-body {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
 .hop-route {
-  flex: 1;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.chip {
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  border: 1px solid currentColor;
-}
-.chip-http { color: var(--kind-app); }
-.chip-db, .chip-cache { color: var(--kind-store); }
-.chip-llm { color: var(--kind-ai); }
-.chip-ws { color: var(--kind-external); }
-.chip-note { color: var(--kind-store); }
-.chip-error { color: #e5484d; }
-
-table.diff {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 0.72rem;
+.hop-route .arrow {
+  color: var(--faint);
 }
 
-table.diff th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--muted);
-  padding: 2px 6px;
+.hop-meta {
+  display: flex;
+  gap: 6px;
 }
 
-table.diff td {
-  padding: 3px 6px;
-  border-top: 1px solid var(--border);
-  vertical-align: top;
-  word-break: break-all;
+/* Payload: signs as well as tints, so a change never depends on colour alone.
+   The field name gets its own line, so long paths never wrap inside a narrow column. */
+.diff {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
 }
 
-.diff-tag {
-  margin-left: 6px;
-  font-size: 0.65rem;
+.diff-head,
+.diff-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 10px;
+}
+
+.diff-head {
+  padding: 0 8px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  opacity: 0.8;
+  color: var(--faint);
 }
 
-tr.diff-added td { background: color-mix(in srgb, var(--observed) 16%, transparent); }
-tr.diff-removed td { background: color-mix(in srgb, #e5484d 16%, transparent); }
-tr.diff-changed td { background: color-mix(in srgb, var(--kind-store) 18%, transparent); }
-tr.diff-same td { color: var(--muted); }
+.diff-head span:first-child {
+  grid-column: 2;
+}
 
+.diff-row {
+  padding: 7px 8px;
+  border-top: 1px solid var(--line);
+}
+
+.diff-row .sign {
+  grid-row: 1 / span 2;
+  font-weight: 700;
+  text-align: center;
+}
+
+.diff-path {
+  grid-column: 2 / -1;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.diff-before,
+.diff-after {
+  min-height: 1.45em;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.diff-row.diff-same .diff-path {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.diff-row.diff-added {
+  background: var(--observed-soft);
+}
+
+.diff-row.diff-added .sign,
+.diff-row.diff-added .diff-after {
+  color: var(--observed);
+}
+
+.diff-row.diff-removed {
+  background: var(--error-soft);
+}
+
+.diff-row.diff-removed .sign,
+.diff-row.diff-removed .diff-before {
+  color: var(--error);
+}
+
+.diff-row.diff-changed {
+  background: var(--subtle);
+}
+
+.diff-row.diff-changed .diff-after {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Call stack */
 .stack {
-  list-style: none;
+  display: grid;
+  gap: 2px;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 4px;
+  list-style: none;
 }
 
 .stack li {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 2px;
-  padding-bottom: 8px;
+  gap: 10px;
+  align-items: baseline;
+  padding: 5px 0 9px calc(var(--depth, 0) * 14px);
 }
 
 .stack-name {
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.stack-time {
+  margin-left: auto;
 }
 
 .stack-bar {
   position: absolute;
-  left: 0;
-  bottom: 2px;
-  height: 3px;
+  bottom: 3px;
+  left: calc(var(--depth, 0) * 14px);
+  height: 2px;
+  max-width: calc(100% - var(--depth, 0) * 14px);
+  background: var(--text);
   border-radius: 2px;
-  background: var(--observed);
-  opacity: 0.6;
+  opacity: 0.2;
 }
 
-/* Packets travelling along an edge, and the hop selected in the list */
-.packet {
-  fill: var(--observed);
-  filter: drop-shadow(0 0 4px var(--observed));
+.stack li.threw .stack-bar {
+  background: var(--error);
+  opacity: 0.8;
 }
 
-.react-flow__edge.edge-selected .react-flow__edge-path {
-  stroke-width: 4px !important;
+.stack-collapsed {
+  padding-top: 6px;
 }
 
-/* Replay bar */
-.replay {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 8px 16px;
-  font-size: 0.8rem;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-}
+/* Narrow screens: the inspector moves under the canvas */
+@media (max-width: 900px) {
+  .app {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
 
-.replay label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
+  .topbar {
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding: 10px 16px;
+  }
 
-.replay select,
-.replay button {
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 8px;
-}
+  .topbar .status {
+    margin-left: 0;
+  }
 
-.replay button {
-  cursor: pointer;
-}
+  main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 62vh auto;
+    overflow-y: auto;
+  }
 
-.replay button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
+  .inspector {
+    overflow: visible;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
 
-.replay .controls {
-  display: flex;
-  gap: 4px;
-}
-
-.replay input[type="range"] {
-  flex: 1;
-  min-width: 140px;
-  accent-color: var(--observed);
-}
-
-.step-label {
-  min-width: 14em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Trigger bar */
-.trigger-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-}
-
-.trigger-bar label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-
-.trigger-bar input,
-.trigger-bar button {
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 8px;
-}
-
-.trigger-bar button {
-  cursor: pointer;
-  border-color: var(--observed);
-}
-
-.trigger-bar button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.trigger-error {
-  color: #e5484d;
+  .transport {
+    bottom: 12px;
+    padding: 8px 10px;
+  }
 }

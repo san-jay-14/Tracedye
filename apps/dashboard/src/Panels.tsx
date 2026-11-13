@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { diffPayload, type DiffRow } from "./diff";
 import { labelOf, type CallRow, type CollapsedRow, type Hop } from "./hops";
 
@@ -5,20 +6,42 @@ const KIND_LABEL: Record<Hop["kind"], string> = { http: "HTTP", db: "Postgres", 
 
 const show = (value: unknown) => (value === undefined ? "" : JSON.stringify(value));
 
+export function Panel({ title, meta, children }: { title: string; meta?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="panel">
+      <header>
+        <h2>{title}</h2>
+        {meta && <span className="meta">{meta}</span>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
 export function HopList({ hops, selectedId, onSelect }: { hops: Hop[]; selectedId?: string; onSelect: (id: string) => void }) {
-  if (hops.length === 0) return <p className="muted">No hops captured yet. Arm a trigger and use the app.</p>;
+  if (hops.length === 0) {
+    return <p className="empty-note">No hops yet. Arm a trigger, then use your app.</p>;
+  }
   return (
     <ol className="hops">
       {hops.map((hop, i) => (
         <li key={hop.id}>
-          <button className={hop.id === selectedId ? "hop selected" : "hop"} onClick={() => onSelect(hop.id)}>
+          <button className={hop.id === selectedId ? "hop selected" : "hop"} onClick={() => onSelect(hop.id)} aria-pressed={hop.id === selectedId}>
             <span className="hop-n">{i + 1}</span>
-            <span className={`chip chip-${hop.kind}`}>{KIND_LABEL[hop.kind]}</span>
-            <span className="hop-route">
-              {labelOf(hop.from)} → {labelOf(hop.to)}
+            <span className="hop-body">
+              <span className="hop-route">
+                {labelOf(hop.from)} <span className="arrow">→</span> {labelOf(hop.to)}
+              </span>
+              <span className="hop-meta">
+                <span className="tag">{KIND_LABEL[hop.kind]}</span>
+                {hop.note && (
+                  <span className="tag" title={hop.note}>
+                    stub
+                  </span>
+                )}
+              </span>
             </span>
-            {hop.durationMs !== undefined && <span className="muted">{hop.durationMs.toFixed(0)} ms</span>}
-            {hop.note && <span className="chip chip-note" title={hop.note}>stub</span>}
+            {hop.durationMs !== undefined && <span className="mono muted">{hop.durationMs.toFixed(0)} ms</span>}
           </button>
         </li>
       ))}
@@ -26,66 +49,64 @@ export function HopList({ hops, selectedId, onSelect }: { hops: Hop[]; selectedI
   );
 }
 
+const SIGN: Record<DiffRow["status"], string> = { same: "", added: "+", removed: "−", changed: "~" };
+
 export function PayloadDiff({ hop }: { hop?: Hop }) {
-  if (!hop) return <p className="muted">Select a hop to see its payload.</p>;
+  if (!hop) return <p className="empty-note">Select a hop to see what went in and what came out.</p>;
   if (hop.before === undefined && hop.after === undefined) {
-    return <p className="muted">No payload was captured for this hop.</p>;
+    return <p className="empty-note">No payload was captured for this hop.</p>;
   }
   // A function that returns nothing has no "after"; the input is shown as it was, not as removed.
   const oneSided = hop.before === undefined || hop.after === undefined;
   const rows = diffPayload(hop.before, hop.after).map((row): DiffRow => (oneSided ? { ...row, status: "same" } : row));
   return (
-    <div>
-      {hop.note && <p className="note">{hop.note}</p>}
-      {oneSided && <p className="muted small">{hop.after === undefined ? "The call returned no value." : "No input was captured."}</p>}
-      <p className="muted small">What went into the call, and what came out. Secrets are redacted before they leave the app.</p>
-      <table className="diff">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Before</th>
-            <th>After</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <DiffLine key={row.path} row={row} />
-          ))}
-        </tbody>
-      </table>
+    <div className="payload">
+      {hop.note && <p className="notice">{hop.note}</p>}
+      {oneSided && <p className="hint">{hop.after === undefined ? "The call returned no value." : "No input was captured."}</p>}
+      <div className="diff" role="table" aria-label="Payload before and after">
+        <div className="diff-head" role="row">
+          <span role="columnheader">Before</span>
+          <span role="columnheader">After</span>
+        </div>
+        {rows.map((row) => (
+          <div key={row.path} className={`diff-row diff-${row.status}`} role="row">
+            <span className="sign" aria-label={row.status === "same" ? undefined : row.status}>
+              {SIGN[row.status]}
+            </span>
+            <span className="diff-path" role="rowheader">
+              {row.path}
+            </span>
+            <span className="diff-before" role="cell">
+              {show(row.before)}
+            </span>
+            <span className="diff-after" role="cell">
+              {show(row.after)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="hint">Secrets are redacted before they leave your app.</p>
     </div>
   );
 }
 
-function DiffLine({ row }: { row: DiffRow }) {
-  return (
-    <tr className={`diff-${row.status}`}>
-      <td>
-        {row.path}
-        <span className="diff-tag">{row.status === "same" ? "" : row.status}</span>
-      </td>
-      <td>{show(row.before)}</td>
-      <td>{show(row.after)}</td>
-    </tr>
-  );
-}
-
 export function CallStack({ rows, collapsed }: { rows: CallRow[]; collapsed: CollapsedRow[] }) {
-  if (rows.length === 0) return <p className="muted">No function calls captured yet.</p>;
+  if (rows.length === 0) return <p className="empty-note">No function calls captured yet.</p>;
   const longest = Math.max(...rows.map((r) => r.durationMs ?? 0), 1);
   return (
     <ul className="stack">
       {rows.map((row) => (
-        <li key={row.spanId} style={{ paddingLeft: row.depth * 16 }}>
+        <li key={row.spanId} style={{ ["--depth" as string]: row.depth }} className={row.threw ? "threw" : undefined}>
           <span className="stack-name">{labelOf(row.nodeId)}</span>
-          {row.threw && <span className="chip chip-error">threw</span>}
-          <span className="muted">{row.durationMs === undefined ? "…" : `${row.durationMs.toFixed(1)} ms`}</span>
-          <span className="stack-bar" style={{ width: `${Math.max(2, ((row.durationMs ?? 0) / longest) * 100)}%` }} />
+          {row.threw && <span className="tag error">threw</span>}
+          <span className="mono muted stack-time">{row.durationMs === undefined ? "…" : `${row.durationMs.toFixed(1)} ms`}</span>
+          <span className="stack-bar" style={{ width: `${Math.max(1.5, ((row.durationMs ?? 0) / longest) * 100)}%` }} />
         </li>
       ))}
       {collapsed.map((c) => (
-        <li key={c.nodeId} className="muted">
-          {labelOf(c.nodeId)} ×{c.calls} (collapsed after the first 10)
+        <li key={c.nodeId} className="stack-collapsed">
+          <span className="stack-name">{labelOf(c.nodeId)}</span>
+          <span className="mono muted">×{c.calls}, collapsed after 10</span>
         </li>
       ))}
     </ul>

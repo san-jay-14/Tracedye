@@ -12,34 +12,42 @@ export function TriggerBar({ armed, connected }: { armed: string | null; connect
     setError(undefined);
     try {
       const response = await fetch(`${BASE}/triggers/${encodeURIComponent(triggerName)}/${action}`, { method: "POST" });
-      if (!response.ok) setError(`collector answered ${response.status}`);
+      if (!response.ok) setError(`The collector answered ${response.status}.`);
     } catch {
-      setError("collector not reachable");
+      setError("The collector is not reachable.");
     }
   }
 
   return (
     <form
-      className="trigger-bar"
+      className="trigger"
       onSubmit={(event) => {
         event.preventDefault();
         if (!armed && name.trim()) void send("arm", name.trim());
       }}
     >
-      <label>
-        Trigger
-        <input value={armed ?? name} onChange={(e) => setName(e.target.value)} disabled={armed !== null || !connected} aria-label="Trigger name" />
-      </label>
+      <input
+        value={armed ?? name}
+        onChange={(e) => setName(e.target.value)}
+        disabled={armed !== null || !connected}
+        aria-label="Trigger name"
+        placeholder="Name a trigger"
+        spellCheck={false}
+      />
       {armed === null ? (
-        <button type="submit" disabled={!connected || !name.trim()}>
+        <button type="submit" className="primary" disabled={!connected || !name.trim()}>
           Arm
         </button>
       ) : (
-        <button type="button" onClick={() => void send("disarm", armed)}>
+        <button type="button" className="secondary" onClick={() => void send("disarm", armed)}>
           Disarm
         </button>
       )}
-      {error && <span className="trigger-error">{error}</span>}
+      {error && (
+        <span className="inline-error" role="alert">
+          {error}
+        </span>
+      )}
     </form>
   );
 }

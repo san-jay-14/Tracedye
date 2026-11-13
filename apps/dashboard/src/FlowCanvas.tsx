@@ -1,4 +1,4 @@
-import { Background, Controls, MarkerType, ReactFlow, type Edge, type Node } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, MarkerType, ReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useMemo } from "react";
 import type { Graph } from "./graph";
@@ -40,13 +40,21 @@ export function FlowCanvas({ graph, layoutGraph, pulses, selectedEdgeId, onEdgeC
       onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
       colorMode="system"
       fitView
+      fitViewOptions={{ padding: 0.12, maxZoom: 1.15 }}
       nodesConnectable={false}
       minZoom={0.2}
     >
-      <Background />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--dot)" />
       <Controls showInteractive={false} />
     </ReactFlow>
   );
+}
+
+// What a node is, in words: colour is kept for what happened, so the kind is written out.
+const KIND_WORD = { app: "route", store: "store", ai: "model", external: "client" } as const;
+function nodeCaption(node: Graph["nodes"][number]): string {
+  const place = node.file ? `${node.file.split("/").pop()}:${node.line}` : "";
+  return node.kind === "app" ? place || KIND_WORD.app : [KIND_WORD[node.kind], place].filter(Boolean).join(" · ");
 }
 
 function toFlow(graph: Graph, layoutGraph: Graph): { nodes: Node[]; edges: Edge[] } {
@@ -64,7 +72,7 @@ function toFlow(graph: Graph, layoutGraph: Graph): { nodes: Node[]; edges: Edge[
       label: (
         <div>
           <strong>{node.label}</strong>
-          <small>{node.file ? `${node.file.split("/").pop()}:${node.line}` : node.kind}</small>
+          <small>{nodeCaption(node)}</small>
         </div>
       ),
     },

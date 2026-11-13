@@ -1,7 +1,7 @@
-export const NODE_WIDTH = 210;
+export const NODE_WIDTH = 176;
 export const NODE_HEIGHT = 52;
-const COLUMN_GAP = 90;
-const ROW_GAP = 28;
+const COLUMN_GAP = 56;
+const ROW_GAP = 22;
 
 interface LayoutInput {
   id: string;
