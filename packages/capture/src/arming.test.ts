@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { runFixture } from "./run-fixture";
-import type { FunctionEvent } from "./runtime.js";
+import type { CaptureEvent } from "./runtime.js";
 
 describe("armed triggers", () => {
-  const scenarios = runFixture<Record<string, FunctionEvent[]>>("arming");
+  const scenarios = runFixture<Record<string, CaptureEvent[]>>("arming");
   const triggerIds = (name: string) => [...new Set(scenarios[name].map((e) => e.triggerId))];
 
   it("emits nothing while unarmed", () => {

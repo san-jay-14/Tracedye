@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { arm, disarm, onEvent, type FunctionEvent } from "../src/index";
+import { arm, disarm, onEvent, type CaptureEvent } from "../src/index";
 import { outer } from "./chain";
 
-const events: FunctionEvent[] = [];
+const events: CaptureEvent[] = [];
 onEvent((event) => events.push(event));
 
 const server = createServer((_req, res) => {
@@ -12,7 +12,7 @@ const server = createServer((_req, res) => {
 await new Promise<void>((resolve) => server.listen(0, resolve));
 const url = `http://localhost:${(server.address() as AddressInfo).port}`;
 
-const scenarios: Record<string, FunctionEvent[]> = {};
+const scenarios: Record<string, CaptureEvent[]> = {};
 
 async function request(name: string, headers: Record<string, string> = {}) {
   const before = events.length;

@@ -4,8 +4,20 @@
 import { createServer } from "node:http";
 import { arm, disarm, onEvent } from "capture";
 
+const short = (value: unknown) => {
+  const json = JSON.stringify(value) ?? "undefined";
+  return json.length > 160 ? `${json.slice(0, 160)}…` : json;
+};
+
 onEvent((event) => {
-  const detail = event.phase === "exit" ? ` ${event.durationMs?.toFixed(1)}ms${event.threw ? " threw" : ""}` : "";
+  if (event.phase === "collapsed") {
+    console.log(`[fn] ${event.triggerId} collapsed ${event.nodeId} calls=${event.calls}`);
+    return;
+  }
+  const detail =
+    event.phase === "enter"
+      ? ` in=${short(event.input)}`
+      : ` ${event.durationMs?.toFixed(1)}ms${event.threw ? " threw" : ` out=${short(event.output)}`}`;
   console.log(
     `[fn] ${event.triggerId} ${event.phase.padEnd(5)} span=${event.spanId} parent=${event.parentId ?? "-"} ${event.nodeId}${detail}`,
   );
@@ -19,7 +31,8 @@ createServer((req, res) => {
     res.writeHead(404).end();
     return;
   }
-  if (action === "arm") arm(decodeURIComponent(name ?? "")); else disarm();
+  if (action === "arm") arm(decodeURIComponent(name ?? ""));
+  else disarm();
   console.log(`[capture] ${action === "arm" ? `armed "${decodeURIComponent(name ?? "")}"` : "disarmed"}`);
   res.end("ok");
 }).listen(CONTROL_PORT, "127.0.0.1");

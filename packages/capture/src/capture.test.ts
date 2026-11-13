@@ -45,8 +45,8 @@ describe("load-time wrapper", () => {
 
   it("uses file:name:line ids relative to the workspace root", () => {
     expect(enterOf("outer").nodeId).toBe("packages/capture/fixtures/chain.ts:outer:1");
-    expect(enterOf("inner").nodeId).toBe("packages/capture/fixtures/chain.ts:inner:5");
-    expect(enterOf("leaf").nodeId).toBe("packages/capture/fixtures/chain.ts:leaf:7");
+    expect(enterOf("inner").nodeId).toBe("packages/capture/fixtures/chain.ts:inner:6");
+    expect(enterOf("leaf").nodeId).toBe("packages/capture/fixtures/chain.ts:leaf:14");
   });
 
   it("records durations that include async waits", () => {
@@ -67,5 +67,17 @@ describe("load-time wrapper", () => {
 
   it("tags every event with the trigger id", () => {
     expect(events.every((e) => e.triggerId === "t1")).toBe(true);
+  });
+});
+
+describe("skip rules", () => {
+  const { events } = runFixture<{ events: FunctionEvent[] }>("main");
+
+  it("leaves trivial functions unwrapped", () => {
+    expect(events.some((e) => e.nodeId.includes(":double:"))).toBe(false);
+  });
+
+  it("still wraps functions that have a body of real work", () => {
+    expect(events.some((e) => e.nodeId.includes(":inner:"))).toBe(true);
   });
 });

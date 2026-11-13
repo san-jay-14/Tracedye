@@ -29,8 +29,8 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: arming "user login" and logging in tags every event with the trigger id; unarmed traffic emits nothing.
 
 ## Day 6: Redaction and overhead guards
-- [ ] In-process redaction (key denylist, size cap)
-- [ ] Skip rules for trivial functions, call-count collapsing, production refusal
+- [x] In-process redaction (key denylist, size cap)
+- [x] Skip rules for trivial functions, call-count collapsing, production refusal
 - Done when: tests show passwords and tokens never leave the process, and the package throws under `NODE_ENV=production`.
 
 ## Day 7: Store and stream

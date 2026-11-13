@@ -4,10 +4,16 @@ import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import diagnosticsChannel from "node:diagnostics_channel";
 import { performance } from "node:perf_hooks";
+import { DEFAULT_DENY_KEYS, DEFAULT_MAX_BYTES, REDACTED, isDeniedKey, redact } from "./redact.js";
+
+// Dev-only: refuse to start in production, so this can never run against live traffic.
+if (process.env.NODE_ENV === "production") {
+  throw new Error("capture refuses to run when NODE_ENV=production");
+}
 
 /**
- * Deliberately carries no arguments or return values: payload capture arrives
- * with redaction (Day 6), so nothing sensitive can leave through these events.
+ * One call of a wrapped function. input and output are redacted and size-capped
+ * before the event exists, so nothing downstream ever sees the raw values.
  * @typedef {object} FunctionEvent
  * @property {"enter" | "exit"} phase
  * @property {string} triggerId the trigger instance this call belongs to
@@ -15,9 +21,23 @@ import { performance } from "node:perf_hooks";
  * @property {string} spanId
  * @property {string} [parentId]
  * @property {number} atMs
+ * @property {unknown} [input] enter only: arguments keyed by parameter name
+ * @property {unknown} [output] exit only: the return value
  * @property {number} [durationMs] exit only
  * @property {boolean} [threw] exit only
  */
+
+/**
+ * A function called more than COLLAPSE_AFTER times in one trigger is reported once,
+ * after the trigger's outermost call returns, instead of once per call.
+ * @typedef {object} CollapsedEvent
+ * @property {"collapsed"} phase
+ * @property {string} triggerId
+ * @property {string} nodeId
+ * @property {number} calls total calls in the trigger, including the ones that were emitted
+ */
+
+/** @typedef {FunctionEvent | CollapsedEvent} CaptureEvent */
 
 /**
  * @typedef {object} TriggerContext
@@ -25,7 +45,9 @@ import { performance } from "node:perf_hooks";
  * @property {string} [spanId] the innermost wrapped call currently running
  */
 
-/** @type {Array<(event: FunctionEvent) => void>} */
+const COLLAPSE_AFTER = 10;
+
+/** @type {Array<(event: CaptureEvent) => void>} */
 const listeners = [];
 /** @type {AsyncLocalStorage<TriggerContext | undefined>} */
 const context = new AsyncLocalStorage();
@@ -34,9 +56,26 @@ let nextSpan = 0;
 /** Name of the armed trigger, or null. Wrappers do nothing while this is null. @type {string | null} */
 let armedName = null;
 
-/** @param {(event: FunctionEvent) => void} listener */
+/** Calls per function in each running trigger. @type {Map<string, Map<string, number>>} */
+const callCounts = new Map();
+
+let redactOptions = { denyKeys: DEFAULT_DENY_KEYS, maxBytes: DEFAULT_MAX_BYTES };
+
+/** @param {(event: CaptureEvent) => void} listener */
 export function onEvent(listener) {
   listeners.push(listener);
+}
+
+/**
+ * Adds keys to the built-in deny list and/or changes the per-value size cap.
+ * The built-in keys can't be removed.
+ * @param {{ denyKeys?: string[], maxBytes?: number }} options
+ */
+export function configure(options) {
+  redactOptions = {
+    denyKeys: [...DEFAULT_DENY_KEYS, ...(options.denyKeys ?? []).map((key) => key.toLowerCase())],
+    maxBytes: options.maxBytes ?? redactOptions.maxBytes,
+  };
 }
 
 /** @param {string} name */
@@ -87,14 +126,78 @@ export function installHttpTrigger() {
   });
 }
 
-/** @param {FunctionEvent} event */
+// Listeners run outside any trigger. They are project code too, so otherwise the
+// functions they call would be wrapped and emit events of their own, forever.
+/** @param {CaptureEvent} event */
 function emit(event) {
-  for (const listener of listeners) listener(event);
+  context.exit(() => {
+    for (const listener of listeners) listener(event);
+  });
 }
 
 /** @param {unknown} value @returns {value is Promise<unknown>} */
 function isPromise(value) {
   return typeof (/** @type {{ then?: unknown } | undefined} */ (value))?.then === "function";
+}
+
+// Positional arguments have no keys, so they are keyed by parameter name, which lets
+// the deny list catch `password` passed as a plain string. A "...name" entry collects
+// the rest arguments; extra arguments get "argN".
+/**
+ * @param {string[]} paramNames
+ * @param {unknown[]} args
+ */
+function namedInput(paramNames, args) {
+  /** @type {Record<string, unknown>} */
+  const input = {};
+  let i = 0;
+  for (; i < paramNames.length; i++) {
+    const name = paramNames[i];
+    if (name.startsWith("...")) {
+      input[name.slice(3)] = args.slice(i);
+      return input;
+    }
+    if (i < args.length) input[name] = args[i];
+  }
+  for (; i < args.length; i++) input[`arg${i}`] = args[i];
+  return input;
+}
+
+/** @param {string} nodeId */
+function nameOf(nodeId) {
+  return nodeId.split(":").at(-2) ?? nodeId;
+}
+
+// A function called hashPassword or getToken handles secrets, whatever the parameters are
+// called or the values look like, so its arguments and return value are all redacted.
+/**
+ * @param {string} functionName
+ * @param {string[]} paramNames
+ * @param {unknown[]} args
+ */
+function redactedInput(functionName, paramNames, args) {
+  const input = namedInput(paramNames, args);
+  if (!isDeniedKey(functionName, redactOptions.denyKeys)) return redact(input, redactOptions);
+  return Object.fromEntries(Object.keys(input).map((key) => [key, REDACTED]));
+}
+
+/**
+ * @param {string} functionName
+ * @param {unknown} output
+ */
+function redactedOutput(functionName, output) {
+  return isDeniedKey(functionName, redactOptions.denyKeys) ? REDACTED : redact(output, redactOptions);
+}
+
+// Called when a trigger's outermost call returns: reports and forgets the call counts.
+/** @param {string} triggerId */
+function flushCollapsed(triggerId) {
+  const counts = callCounts.get(triggerId);
+  callCounts.delete(triggerId);
+  if (!counts) return;
+  for (const [nodeId, calls] of counts) {
+    if (calls > COLLAPSE_AFTER) emit({ phase: "collapsed", triggerId, nodeId, calls });
+  }
 }
 
 /**
@@ -103,9 +206,12 @@ function isPromise(value) {
  * @template {(...args: any[]) => any} T
  * @param {string} nodeId
  * @param {T} fn
+ * @param {string[]} [paramNames]
  * @returns {T}
  */
-export function wrapFunction(nodeId, fn) {
+export function wrapFunction(nodeId, fn, paramNames = []) {
+  const name = nameOf(nodeId);
+
   /** @this {unknown} @param {unknown[]} args */
   const wrapped = function (...args) {
     if (armedName === null) return fn.apply(this, args);
@@ -113,15 +219,41 @@ export function wrapFunction(nodeId, fn) {
     if (!current) return fn.apply(this, args);
 
     const { triggerId } = current;
+    let counts = callCounts.get(triggerId);
+    if (!counts) callCounts.set(triggerId, (counts = new Map()));
+    const calls = (counts.get(nodeId) ?? 0) + 1;
+    counts.set(nodeId, calls);
+    // Counted but not emitted, and no span of its own, so its callees attach to its caller.
+    if (calls > COLLAPSE_AFTER) return fn.apply(this, args);
+
     const spanId = String(++nextSpan);
     const parentId = current.spanId;
     const start = performance.now();
-    emit({ phase: "enter", triggerId, nodeId, spanId, parentId, atMs: start });
+    emit({
+      phase: "enter",
+      triggerId,
+      nodeId,
+      spanId,
+      parentId,
+      atMs: start,
+      input: redactedInput(name, paramNames, args),
+    });
 
-    /** @param {boolean} [threw] */
-    const finish = (threw) => {
+    /** @param {{ output?: unknown, threw?: boolean }} outcome */
+    const finish = ({ output, threw }) => {
       const end = performance.now();
-      emit({ phase: "exit", triggerId, nodeId, spanId, parentId, atMs: end, durationMs: end - start, threw });
+      emit({
+        phase: "exit",
+        triggerId,
+        nodeId,
+        spanId,
+        parentId,
+        atMs: end,
+        durationMs: end - start,
+        output: threw ? undefined : redactedOutput(name, output),
+        threw,
+      });
+      if (parentId === undefined) flushCollapsed(triggerId);
     };
 
     /** @type {unknown} */
@@ -129,26 +261,26 @@ export function wrapFunction(nodeId, fn) {
     try {
       result = context.run({ triggerId, spanId }, () => fn.apply(this, args));
     } catch (error) {
-      finish(true);
+      finish({ threw: true });
       throw error;
     }
     if (isPromise(result)) {
       return result.then(
         (value) => {
-          finish();
+          finish({ output: value });
           return value;
         },
         (error) => {
-          finish(true);
+          finish({ threw: true });
           throw error;
         },
       );
     }
-    finish();
+    finish({ output: result });
     return result;
   };
 
-  Object.defineProperty(wrapped, "name", { value: fn.name });
+  Object.defineProperty(wrapped, "name", { value: fn.name || name });
   Object.defineProperty(wrapped, "length", { value: fn.length });
   return /** @type {T} */ (/** @type {unknown} */ (wrapped));
 }
