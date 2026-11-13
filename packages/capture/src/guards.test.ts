@@ -170,3 +170,17 @@ describe("hops", () => {
     expect(typeof scenarios.spans.attributes[0]["capture.at_ms"]).toBe("number");
   });
 });
+
+describe("lazy thenables", () => {
+  const result = runFixture<{ isQuery: string; runs: number; canChain: string; events: number }>("thenable");
+
+  it("are returned as they are: capture does not call .then on something that is not a Promise", () => {
+    expect(result.isQuery).toBe("Query");
+    expect(result.runs).toBe(0);
+    expect(result.canChain).toBe("function");
+  });
+
+  it("still records the call", () => {
+    expect(result.events).toBe(2);
+  });
+});

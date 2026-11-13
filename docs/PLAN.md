@@ -54,8 +54,8 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - Done when: a past login can be replayed step by step.
 
 ## Day 11: Large-repo benchmark
-- [ ] Run the indexer and capture on one large open-source TypeScript repo (ask which)
-- [ ] Record index time, functions indexed, observed versus static-only edge share, overhead with a trigger armed
+- [x] Run the indexer and capture on one large open-source TypeScript repo (ask which)
+- [x] Record index time, functions indexed, observed versus static-only edge share, overhead with a trigger armed
 - Done when: the numbers are in `docs/BENCHMARKS.md`.
 
 ## Day 12: Hosted demo

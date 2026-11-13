@@ -15,7 +15,16 @@ const ROUTE_METHODS = ["get", "post", "put", "patch", "delete"];
 
 type FunctionNode = Node; // FunctionDeclaration, ArrowFunction or FunctionExpression
 
+export interface IndexResult {
+  map: MapOutput;
+  filesIndexed: number;
+}
+
 export function indexProject(tsConfigFilePath: string, rootDir: string): MapOutput {
+  return indexProjectDetailed(tsConfigFilePath, rootDir).map;
+}
+
+export function indexProjectDetailed(tsConfigFilePath: string, rootDir: string): IndexResult {
   const project = new Project({ tsConfigFilePath });
   // Only the project's own files: not dependencies, and not other workspace packages
   // that TypeScript followed an import into (such as the capture tool itself).
@@ -117,7 +126,10 @@ export function indexProject(tsConfigFilePath: string, rootDir: string): MapOutp
     }
   }
 
-  return { nodes: [...nodes.values()].sort(byId), edges: [...edges.values()].sort(byEdge) };
+  return {
+    map: { nodes: [...nodes.values()].sort(byId), edges: [...edges.values()].sort(byEdge) },
+    filesIndexed: files.length,
+  };
 }
 
 function namedFunctions(file: SourceFile): { name: string; fn: FunctionNode }[] {

@@ -195,9 +195,12 @@ function emit(event) {
   });
 }
 
+// Only a real Promise. A thenable that is not one, such as a lazy query builder, runs its query
+// when .then is called, so calling it here would run the query early and hand back a Promise
+// where the caller expects the builder.
 /** @param {unknown} value @returns {value is Promise<unknown>} */
 function isPromise(value) {
-  return typeof (/** @type {{ then?: unknown } | undefined} */ (value))?.then === "function";
+  return value instanceof Promise;
 }
 
 // Positional arguments have no keys, so they are keyed by parameter name, which lets
