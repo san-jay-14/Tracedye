@@ -422,3 +422,42 @@ tr.diff-same td { color: var(--muted); }
   min-width: 14em;
   font-variant-numeric: tabular-nums;
 }
+
+/* Trigger bar */
+.trigger-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.trigger-bar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.trigger-bar input,
+.trigger-bar button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.trigger-bar button {
+  cursor: pointer;
+  border-color: var(--observed);
+}
+
+.trigger-bar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trigger-error {
+  color: #e5484d;
+}

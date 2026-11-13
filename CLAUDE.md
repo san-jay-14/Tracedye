@@ -27,6 +27,7 @@ apps/dashboard/       React Flow dashboard
 packages/indexer/     static analysis, produces the map
 packages/capture/     dev-only runtime package (wrapper, correlation, redaction)
 packages/collector/   receives events, stores them, streams to dashboard
+packages/cli/         the `dfd` command: one-command setup into a codebase (docs/CLI.md)
 docs/
 ```
 
@@ -55,6 +56,8 @@ Fill these in as they exist. Do not invent commands that aren't in `package.json
 pnpm install
 pnpm typecheck
 pnpm test
+dfd dev -- <command that starts your app>    # from packages/cli, bin "dfd"; see docs/CLI.md
+dfd init
 ```
 
 ## Open decisions (ask before assuming)

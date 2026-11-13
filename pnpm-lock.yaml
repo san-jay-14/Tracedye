@@ -50,27 +50,6 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^1.8.0
         version: 1.8.0
-      '@opentelemetry/exporter-trace-otlp-http':
-        specifier: ^0.301.2
-        version: 0.301.2
-      '@opentelemetry/instrumentation':
-        specifier: ^0.301.2
-        version: 0.301.2
-      '@opentelemetry/instrumentation-http':
-        specifier: ^0.301.2
-        version: 0.301.2
-      '@opentelemetry/instrumentation-ioredis':
-        specifier: ^0.73.0
-        version: 0.73.0
-      '@opentelemetry/instrumentation-pg':
-        specifier: ^0.78.0
-        version: 0.78.0
-      '@opentelemetry/sdk-node':
-        specifier: ^0.301.2
-        version: 0.301.2
-      '@opentelemetry/sdk-trace-base':
-        specifier: ^2.12.0
-        version: 2.12.0
       capture:
         specifier: workspace:*
         version: link:../../packages/capture
@@ -114,6 +93,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.3.0
         version: 6.3.0(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+      cli:
+        specifier: workspace:*
+        version: link:../../packages/cli
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -139,6 +121,61 @@ importers:
       vitest:
         specifier: ^5.1.0
         version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/cli:
+    dependencies:
+      '@opentelemetry/exporter-trace-otlp-http':
+        specifier: ^0.301.2
+        version: 0.301.2
+      '@opentelemetry/instrumentation':
+        specifier: ^0.301.2
+        version: 0.301.2
+      '@opentelemetry/instrumentation-ioredis':
+        specifier: ^0.73.0
+        version: 0.73.0
+      '@opentelemetry/instrumentation-pg':
+        specifier: ^0.78.0
+        version: 0.78.0
+      '@opentelemetry/sdk-node':
+        specifier: ^0.301.2
+        version: 0.301.2
+      '@opentelemetry/sdk-trace-base':
+        specifier: ^2.12.0
+        version: 2.12.0
+      capture:
+        specifier: workspace:*
+        version: link:../capture
+      collector:
+        specifier: workspace:*
+        version: link:../collector
+      dashboard:
+        specifier: workspace:*
+        version: link:../../apps/dashboard
+      indexer:
+        specifier: workspace:*
+        version: link:../indexer
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      vite:
+        specifier: ^8.3.8
+        version: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      '@types/ws':
+        specifier: ^8.18.2
+        version: 8.18.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+      ws:
+        specifier: ^8.23.0
+        version: 8.23.0
 
   packages/collector:
     dependencies:
@@ -489,12 +526,6 @@ packages:
 
   '@opentelemetry/exporter-zipkin@3.1.1':
     resolution: {integrity: sha512-Y0lKFdA3gTh0lA9W+J7AKRvcKnLFfxv4z73WHZNc/LcqwL8XhgGvu0ML/ogN1VvKXNmIB95ipXbI66D3JTKcgQ==}
-    engines: {node: '>=22.15.0'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.10.0
-
-  '@opentelemetry/instrumentation-http@0.301.2':
-    resolution: {integrity: sha512-IgxJ5R639ouwlGkK8Lv4AJykTeo63n5hR5g91VvABY1dc60oBLPUef8Z91jM25XFNEPzGMPufTuVWxeQshM1aw==}
     engines: {node: '>=22.15.0'}
     peerDependencies:
       '@opentelemetry/api': ^1.10.0
@@ -1211,9 +1242,6 @@ packages:
   finalhandler@2.1.1:
     resolution: {integrity: sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==}
     engines: {node: '>= 18.0.0'}
-
-  forwarded-parse@2.2.0:
-    resolution: {integrity: sha512-jYQDJm+NayL3VZVE+tydz/Ja3dy8xurckRr9R1mmVkpdOdQlTqJktv4ZVDThu2iZj3mLZL/qpL3CKfJe1eS7Cw==}
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -2036,15 +2064,6 @@ snapshots:
       '@opentelemetry/sdk-trace': 3.1.1
       '@opentelemetry/semantic-conventions': 1.45.0
 
-  '@opentelemetry/instrumentation-http@0.301.2':
-    dependencies:
-      '@opentelemetry/core': 3.1.1
-      '@opentelemetry/instrumentation': 0.301.2
-      '@opentelemetry/semantic-conventions': 1.45.0
-      forwarded-parse: 2.2.0
-    transitivePeerDependencies:
-      - supports-color
-
   '@opentelemetry/instrumentation-ioredis@0.73.0':
     dependencies:
       '@opentelemetry/instrumentation': 0.301.2
@@ -2705,8 +2724,6 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
-
-  forwarded-parse@2.2.0: {}
 
   forwarded@0.2.0: {}
 

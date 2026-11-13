@@ -1,4 +1,3 @@
-import "./capture-log";
 import { createServer } from "node:http";
 import express from "express";
 import { WebSocketServer } from "ws";

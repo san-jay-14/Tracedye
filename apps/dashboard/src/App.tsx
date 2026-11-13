@@ -3,6 +3,7 @@ import { FlowCanvas } from "./FlowCanvas";
 import { buildGraph } from "./graph";
 import { callStackOf, dedupeEvents, hopsOf, latestTriggerId } from "./hops";
 import { ReplayBar } from "./ReplayBar";
+import { TriggerBar } from "./TriggerBar";
 import { buildReplayGraph, stepEdgeIds } from "./replay";
 import { useReplay } from "./useReplay";
 import { CallStack, HopList, PayloadDiff } from "./Panels";
@@ -58,6 +59,7 @@ export function App() {
         <span className={`status ${connected ? "on" : "off"}`}>
           {connected ? (armed ? `armed: ${armed}` : "connected, not armed") : "collector not reachable"}
         </span>
+        <TriggerBar armed={armed} connected={connected} />
         <ul className="legend" aria-label="Edge legend">
           {(["observed", "static", "inferred"] as const).map((provenance) => (
             <li key={provenance} title={PROVENANCE_DESCRIPTION[provenance]}>

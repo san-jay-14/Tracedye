@@ -69,3 +69,7 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 
 ## Day 14: Buffer and launch
 - [ ] Fix what slipped, then publish
+
+## Extra work (outside the 14 days)
+- [x] `dfd` command (`packages/cli`): `dfd dev -- <your start command>` runs a TypeScript app with the collector, dashboard, indexer and capture, and `dfd init` adds a `dev:trace` script. Distributed as a local link for now. See `docs/CLI.md`.
+- [x] Dashboard trigger bar (arm and disarm), so arming no longer needs `curl`.
