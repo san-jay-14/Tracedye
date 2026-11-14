@@ -3,7 +3,7 @@ export interface DevOptions {
   port: number; // collector; 0 picks a free one
   dashboardPort: number;
   tsconfig: string;
-  dataDir?: string; // where the collector keeps its database (default: .dfd in the project)
+  dataDir?: string; // where the collector keeps its database (default: .tracedye in the project)
   arm?: string;
   dashboard: boolean;
   otel: boolean;
@@ -26,20 +26,20 @@ export type Parsed =
 const DEFAULT_PORT = 4318;
 const DEFAULT_DASHBOARD_PORT = 5174;
 
-export const USAGE = `dfd: see a real request move through your TypeScript app.
+export const USAGE = `tracedye: see a real request move through your TypeScript app.
 
 Usage:
-  dfd dev [options] -- <command that starts your app>
-  dfd init [--dir <folder>] [--script <name>]
+  tracedye dev [options] -- <command that starts your app>
+  tracedye init [--dir <folder>] [--script <name>]
 
 dev runs your command with capture loaded, and starts the collector and the dashboard.
-Nothing in your project is changed (it keeps its own data in .dfd/).
-  Example:  dfd dev -- tsx src/server.ts
+Nothing in your project is changed (it keeps its own data in .tracedye/).
+  Example:  tracedye dev -- tsx src/server.ts
 
 dev options:
   --dir <folder>          project folder (default: the current one)
   --tsconfig <file>       tsconfig used to build the map (default: tsconfig.json)
-  --data-dir <folder>     where to keep the collector database (default: .dfd in the project)
+  --data-dir <folder>     where to keep the collector database (default: .tracedye in the project)
   --arm <name>            arm a trigger at start-up (otherwise arm it in the dashboard)
   --port <n>              collector port (default ${DEFAULT_PORT})
   --dashboard-port <n>    dashboard port (default ${DEFAULT_DASHBOARD_PORT})
@@ -48,8 +48,8 @@ dev options:
   --no-index              do not build the static map
   --open                  open the dashboard in your browser
 
-init adds a "dev:trace" script to package.json (it runs your dev script through dfd dev)
-and ignores .dfd/ in .gitignore.
+init adds a "dev:trace" script to package.json (it runs your dev script through tracedye dev)
+and ignores .tracedye/ in .gitignore.
 
 Dev only: refuses to run when NODE_ENV=production. Supports TypeScript on Node with Express,
 run from source with tsx.`;
@@ -79,7 +79,7 @@ export function parseArgs(argv: string[]): Parsed {
   const flags = split === -1 ? rest : rest.slice(0, split);
   const command = split === -1 ? [] : rest.slice(split + 1);
   if (command.length === 0) {
-    return { kind: "error", message: 'dev needs the command that starts your app after "--", for example: dfd dev -- tsx src/server.ts' };
+    return { kind: "error", message: 'dev needs the command that starts your app after "--", for example: tracedye dev -- tsx src/server.ts' };
   }
 
   const options: DevOptions = {

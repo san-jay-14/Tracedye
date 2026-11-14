@@ -8,7 +8,7 @@ const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
 function project(packageJson: string, gitignore?: string) {
-  const dir = mkdtempSync(path.join(tmpdir(), "dfd-init-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "tracedye-init-"));
   dirs.push(dir);
   writeFileSync(path.join(dir, "package.json"), packageJson);
   if (gitignore !== undefined) writeFileSync(path.join(dir, ".gitignore"), gitignore);
@@ -17,12 +17,12 @@ function project(packageJson: string, gitignore?: string) {
 const read = (dir: string, file: string) => readFileSync(path.join(dir, file), "utf8");
 
 describe("initProject", () => {
-  it("adds dev:trace, which runs the dev script through dfd, and ignores .dfd/", () => {
+  it("adds dev:trace, which runs the dev script through tracedye, and ignores .tracedye/", () => {
     const dir = project('{\n  "name": "app",\n  "scripts": {\n    "dev": "tsx watch src/server.ts"\n  }\n}\n');
     const result = initProject(dir, "dev");
     const pkg = JSON.parse(read(dir, "package.json"));
-    expect(pkg.scripts).toEqual({ dev: "tsx watch src/server.ts", "dev:trace": "dfd dev -- npm run dev" });
-    expect(read(dir, ".gitignore")).toBe(".dfd/\n");
+    expect(pkg.scripts).toEqual({ dev: "tsx watch src/server.ts", "dev:trace": "tracedye dev -- npm run dev" });
+    expect(read(dir, ".gitignore")).toBe(".tracedye/\n");
     expect(result.changes).toHaveLength(2);
   });
 
@@ -52,23 +52,23 @@ describe("initProject", () => {
   it("appends to an existing .gitignore, even without a final newline", () => {
     const dir = project('{"scripts":{"dev":"x"}}', "node_modules");
     initProject(dir, "dev");
-    expect(read(dir, ".gitignore")).toBe("node_modules\n.dfd/\n");
+    expect(read(dir, ".gitignore")).toBe("node_modules\n.tracedye/\n");
   });
 
-  it("does not repeat .dfd/ when it is already ignored", () => {
-    const dir = project('{"scripts":{"dev":"x"}}', "node_modules\n.dfd/\n");
+  it("does not repeat .tracedye/ when it is already ignored", () => {
+    const dir = project('{"scripts":{"dev":"x"}}', "node_modules\n.tracedye/\n");
     initProject(dir, "dev");
-    expect(read(dir, ".gitignore")).toBe("node_modules\n.dfd/\n");
+    expect(read(dir, ".gitignore")).toBe("node_modules\n.tracedye/\n");
   });
 
   it("uses the script you name", () => {
     const dir = project('{"scripts":{"start":"tsx a.ts"}}');
     initProject(dir, "start");
-    expect(JSON.parse(read(dir, "package.json")).scripts["dev:trace"]).toBe("dfd dev -- npm run start");
+    expect(JSON.parse(read(dir, "package.json")).scripts["dev:trace"]).toBe("tracedye dev -- npm run start");
   });
 
   it("explains when there is no package.json or no such script, and writes nothing", () => {
-    const empty = mkdtempSync(path.join(tmpdir(), "dfd-init-"));
+    const empty = mkdtempSync(path.join(tmpdir(), "tracedye-init-"));
     dirs.push(empty);
     expect(() => initProject(empty, "dev")).toThrow(/No package\.json/);
     const dir = project('{"scripts":{"build":"x"}}');

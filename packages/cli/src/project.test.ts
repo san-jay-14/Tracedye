@@ -8,13 +8,13 @@ const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
 function project(files: Record<string, string>) {
-  const dir = mkdtempSync(path.join(tmpdir(), "dfd-project-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "tracedye-project-"));
   dirs.push(dir);
   for (const [name, content] of Object.entries(files)) writeFileSync(path.join(dir, name), content);
   return dir;
 }
 
-const base = { tsconfig: "tsconfig.json", env: {}, nodeVersion: "v22.1.0", command: ["tsx", "src/server.ts"] };
+const base = { tsconfig: "tsconfig.json", env: {}, nodeVersion: "v22.14.0", command: ["tsx", "src/server.ts"] };
 const good = { "package.json": '{"type":"module"}', "tsconfig.json": "{}" };
 
 describe("checkProject", () => {
@@ -27,9 +27,13 @@ describe("checkProject", () => {
     expect(errors.join()).toMatch(/production/);
   });
 
-  it("refuses Node older than 20", () => {
-    expect(checkProject({ ...base, dir: project(good), nodeVersion: "v18.19.0" }).errors.join()).toMatch(/Node 20/);
-    expect(checkProject({ ...base, dir: project(good), nodeVersion: "v20.0.0" }).errors).toEqual([]);
+  it("refuses Node older than 22.13, where the built-in SQLite needs no flag", () => {
+    for (const version of ["v18.19.0", "v20.19.0", "v22.12.9"]) {
+      expect(checkProject({ ...base, dir: project(good), nodeVersion: version }).errors.join()).toMatch(/Node 22.13/);
+    }
+    for (const version of ["v22.13.0", "v22.20.1", "v24.0.0", "v25.2.1"]) {
+      expect(checkProject({ ...base, dir: project(good), nodeVersion: version }).errors).toEqual([]);
+    }
   });
 
   it("warns, without stopping, about a CommonJS project", () => {

@@ -18,11 +18,11 @@ export function buildChildEnv(input: {
     ...input.base,
     NODE_OPTIONS: options,
     NODE_ENV: input.base.NODE_ENV ?? "development",
-    DFD_COLLECTOR_URL: input.collectorUrl,
-    DFD_CAPTURE_REGISTER: input.preloads.captureRegister,
-    DFD_CAPTURE_FORWARD: input.preloads.captureForward,
-    DFD_OTEL_PRELOAD: input.preloads.otel,
-    DFD_OTEL: input.otel ? "1" : "0",
+    TRACEDYE_COLLECTOR_URL: input.collectorUrl,
+    TRACEDYE_CAPTURE_REGISTER: input.preloads.captureRegister,
+    TRACEDYE_CAPTURE_FORWARD: input.preloads.captureForward,
+    TRACEDYE_OTEL_PRELOAD: input.preloads.otel,
+    TRACEDYE_OTEL: input.otel ? "1" : "0",
   };
 }
 

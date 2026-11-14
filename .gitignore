@@ -5,4 +5,4 @@ dist
 *.db
 *.db-wal
 *.db-shm
-.dfd/
+.tracedye/

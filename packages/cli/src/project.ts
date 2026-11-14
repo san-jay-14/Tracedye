@@ -19,8 +19,11 @@ export function checkProject(input: {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const major = Number(input.nodeVersion.replace(/^v/, "").split(".")[0]);
-  if (major < 20) errors.push(`Node ${input.nodeVersion} is too old: dfd needs Node 20 or newer.`);
+  // The collector uses Node's built-in SQLite, which is available without a flag from 22.13.
+  const [major, minor] = input.nodeVersion.replace(/^v/, "").split(".").map(Number);
+  if (major < 22 || (major === 22 && minor < 13)) {
+    errors.push(`Node ${input.nodeVersion} is too old: tracedye needs Node 22.13 or newer.`);
+  }
   if (input.env.NODE_ENV === "production") {
     errors.push("NODE_ENV is production. This tool is dev-only and refuses to run against production.");
   }

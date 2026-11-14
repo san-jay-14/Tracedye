@@ -16,11 +16,11 @@ describe("buildChildEnv", () => {
   it("tells the preload where everything is", () => {
     const env = buildChildEnv({ base: {}, collectorUrl: "http://localhost:4999", preloads, otel: false });
     expect(env).toMatchObject({
-      DFD_COLLECTOR_URL: "http://localhost:4999",
-      DFD_CAPTURE_REGISTER: preloads.captureRegister,
-      DFD_CAPTURE_FORWARD: preloads.captureForward,
-      DFD_OTEL_PRELOAD: preloads.otel,
-      DFD_OTEL: "0",
+      TRACEDYE_COLLECTOR_URL: "http://localhost:4999",
+      TRACEDYE_CAPTURE_REGISTER: preloads.captureRegister,
+      TRACEDYE_CAPTURE_FORWARD: preloads.captureForward,
+      TRACEDYE_OTEL_PRELOAD: preloads.otel,
+      TRACEDYE_OTEL: "0",
     });
   });
 

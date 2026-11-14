@@ -1,4 +1,4 @@
-# Data Flow Debugger (working name)
+# Tracedye
 
 A dev-time tool that shows one real event (for example a user login) moving through a TypeScript app, with the payload visible at every hop and function-level detail, so developers don't need console.log. Built as a portfolio and open-source project, not a product.
 
@@ -10,10 +10,10 @@ Read these before writing code:
 
 ## Stack (v1)
 
-- TypeScript (strict), Node 20+, pnpm workspaces, Vitest
+- TypeScript (strict), Node 22.13+ (the collector uses the built-in node:sqlite), pnpm workspaces, Vitest
 - Static analysis: ts-morph (TypeScript compiler API)
 - Runtime capture: OpenTelemetry JS plus a load-time function wrapper
-- Collector: Node process, SQLite (better-sqlite3), WebSocket (ws)
+- Collector: Node process, SQLite (node:sqlite, built in, nothing to compile), WebSocket (ws)
 - Dashboard: React, Vite, React Flow
 - Sample app: React (Vite), Express, Postgres, Redis, one LLM call, WebSocket push
 
@@ -27,7 +27,7 @@ apps/dashboard/       React Flow dashboard
 packages/indexer/     static analysis, produces the map
 packages/capture/     dev-only runtime package (wrapper, correlation, redaction)
 packages/collector/   receives events, stores them, streams to dashboard
-packages/cli/         the `dfd` command: one-command setup into a codebase (docs/CLI.md)
+packages/cli/         the `tracedye` command: one-command setup into a codebase (docs/CLI.md)
 docs/
 ```
 
@@ -56,13 +56,11 @@ Fill these in as they exist. Do not invent commands that aren't in `package.json
 pnpm install
 pnpm typecheck
 pnpm test
-dfd dev -- <command that starts your app>    # from packages/cli, bin "dfd"; see docs/CLI.md
-dfd init
+tracedye dev -- <command that starts your app>    # from packages/cli, bin "tracedye"; see docs/CLI.md
+tracedye init
 ```
 
 ## Open decisions (ask before assuming)
 
-- Final project name and npm scope
-- License (default proposal: MIT)
 - Hosting for the live demo
 - Which large open-source TypeScript repo to benchmark on (Day 11)

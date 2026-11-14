@@ -8,7 +8,7 @@ export interface InitResult {
 
 const TRACE_SCRIPT = "dev:trace";
 
-// Adds a "dev:trace" script (your dev script, run through dfd dev) and ignores .dfd/.
+// Adds a "dev:trace" script (your dev script, run through tracedye dev) and ignores .tracedye/.
 // Running it twice changes nothing. Nothing else in the project is touched.
 export function initProject(dir: string, scriptName: string): InitResult {
   const packageJson = path.join(dir, "package.json");
@@ -27,7 +27,7 @@ export function initProject(dir: string, scriptName: string): InitResult {
   if (scripts[TRACE_SCRIPT]) {
     notes.push(`"${TRACE_SCRIPT}" already exists, left as it is.`);
   } else {
-    pkg.scripts = { ...scripts, [TRACE_SCRIPT]: `dfd dev -- npm run ${scriptName}` };
+    pkg.scripts = { ...scripts, [TRACE_SCRIPT]: `tracedye dev -- npm run ${scriptName}` };
     const indent = /^\t/m.test(text) ? "\t" : /^( +)"/m.exec(text)?.[1] ?? "  ";
     writeFileSync(packageJson, `${JSON.stringify(pkg, null, indent)}${text.endsWith("\n") ? "\n" : ""}`);
     changes.push(`package.json: added script "${TRACE_SCRIPT}"`);
@@ -35,12 +35,12 @@ export function initProject(dir: string, scriptName: string): InitResult {
 
   const gitignore = path.join(dir, ".gitignore");
   const existing = existsSync(gitignore) ? readFileSync(gitignore, "utf8") : "";
-  if (existing.split(/\r?\n/).some((line) => line.trim() === ".dfd/" || line.trim() === ".dfd")) {
-    notes.push(".gitignore already ignores .dfd/");
+  if (existing.split(/\r?\n/).some((line) => line.trim() === ".tracedye/" || line.trim() === ".tracedye")) {
+    notes.push(".gitignore already ignores .tracedye/");
   } else {
     const prefix = existing === "" || existing.endsWith("\n") ? "" : "\n";
-    writeFileSync(gitignore, `${existing}${prefix}.dfd/\n`);
-    changes.push(".gitignore: added .dfd/");
+    writeFileSync(gitignore, `${existing}${prefix}.tracedye/\n`);
+    changes.push(".gitignore: added .tracedye/");
   }
 
   return { changes, notes };

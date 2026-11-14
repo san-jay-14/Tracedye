@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:server": "dfd dev --tsconfig server/tsconfig.json -- tsx server/index.ts",
+    "dev:server": "tracedye dev --tsconfig server/tsconfig.json -- tsx server/index.ts",
     "dev:client": "vite client",
     "typecheck": "tsc -p server && tsc -p client"
   },

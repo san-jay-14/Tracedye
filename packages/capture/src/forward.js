@@ -1,10 +1,10 @@
 // Plain JavaScript (types in JSDoc, checked by tsc), see runtime.js.
 // A preload that sends capture's events to the collector and follows its armed state:
 // events are batched to POST /events, and GET /state is polled to arm and disarm.
-// Collector address: DFD_COLLECTOR_URL, default http://localhost:4318.
+// Collector address: TRACEDYE_COLLECTOR_URL, default http://localhost:4318.
 import { arm, disarm, onEvent } from "./runtime.js";
 
-const COLLECTOR = process.env.DFD_COLLECTOR_URL ?? "http://localhost:4318";
+const COLLECTOR = process.env.TRACEDYE_COLLECTOR_URL ?? "http://localhost:4318";
 const FLUSH_MS = 100;
 const POLL_MS = 500;
 

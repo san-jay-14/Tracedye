@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "dfd": "./bin/dfd.mjs"
+    "tracedye": "./bin/tracedye.mjs"
   },
   "scripts": {
     "typecheck": "tsc -p .",

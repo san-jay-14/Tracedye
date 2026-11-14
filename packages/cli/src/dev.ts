@@ -1,56 +1,45 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { findWorkspaceRoot } from "capture/root";
 import { startCollector } from "collector/src/server";
 import type { DevOptions } from "./args";
+import { startDashboard, type DashboardServer } from "./dashboard-server";
 import { buildChildEnv, toShellCommand } from "./env";
+import { locateRuntime, type Runtime } from "./paths";
 import { checkProject } from "./project";
 
-const require = createRequire(import.meta.url);
-const log = (message: string) => console.log(`[dfd] ${message}`);
-
-const fileUrl = (specifier: string) => pathToFileURL(require.resolve(specifier)).href;
-const packageDir = (name: string) => path.dirname(require.resolve(`${name}/package.json`));
+const log = (message: string) => console.log(`[tracedye] ${message}`);
 
 export async function dev(options: DevOptions): Promise<number> {
   const dir = path.resolve(options.dir);
+  const runtime = locateRuntime();
 
   const check = checkProject({ dir, command: options.command, tsconfig: options.tsconfig, env: process.env, nodeVersion: process.version });
   for (const warning of check.warnings) log(`warning: ${warning}`);
   if (check.errors.length > 0) {
-    for (const error of check.errors) console.error(`[dfd] error: ${error}`);
+    for (const error of check.errors) console.error(`[tracedye] error: ${error}`);
     return 1;
   }
 
-  // Everything dfd stores lives in the project's .dfd/, which ignores itself.
-  const dataDir = options.dataDir ? path.resolve(options.dataDir) : path.join(dir, ".dfd");
+  // Everything tracedye stores lives in the project's .tracedye/, which ignores itself.
+  const dataDir = options.dataDir ? path.resolve(options.dataDir) : path.join(dir, ".tracedye");
   mkdirSync(dataDir, { recursive: true });
   writeFileSync(path.join(dataDir, ".gitignore"), "*\n");
 
   const collector = await startCollector({ port: options.port, dbPath: path.join(dataDir, "collector.db") }).catch((error) => {
-    throw new Error(error?.code === "EADDRINUSE" ? `port ${options.port} is in use (is dfd already running here?). Use --port.` : String(error));
+    throw new Error(error?.code === "EADDRINUSE" ? `port ${options.port} is in use (is tracedye already running here?). Use --port.` : String(error));
   });
   const collectorUrl = `http://localhost:${collector.port}`;
   log(`collector on ${collectorUrl}`);
 
   let dashboardUrl: string | undefined;
-  let vite: import("vite").ViteDevServer | undefined;
+  let dashboard: DashboardServer | undefined;
   if (options.dashboard) {
-    process.env.COLLECTOR_URL = collectorUrl; // read by the dashboard's vite.config.ts
-    const { createServer } = await import("vite"); // only when the dashboard is wanted
-    vite = await createServer({
-      root: packageDir("dashboard"),
-      server: { port: options.dashboardPort, strictPort: true },
-      logLevel: "warn",
-      clearScreen: false,
-    }).catch((error) => {
-      throw new Error(/in use/i.test(String(error)) ? `port ${options.dashboardPort} is in use. Use --dashboard-port.` : String(error));
+    dashboard = await startDashboardFor(runtime, options.dashboardPort, collectorUrl).catch((error) => {
+      throw new Error(error?.code === "EADDRINUSE" || /in use/i.test(String(error)) ? `port ${options.dashboardPort} is in use. Use --dashboard-port.` : String(error));
     });
-    await vite.listen();
-    dashboardUrl = `http://localhost:${vite.config.server.port}`;
+    dashboardUrl = `http://localhost:${dashboard.port}`;
     log(`dashboard on ${dashboardUrl}`);
     if (options.open) openBrowser(dashboardUrl);
   }
@@ -62,19 +51,9 @@ export async function dev(options: DevOptions): Promise<number> {
 
   // Indexing can take minutes on a big repo and blocks while it runs, so it is its own process
   // and the map is pushed whenever it finishes.
-  if (options.index) void indexAndPush(dir, options.tsconfig, collectorUrl);
+  if (options.index) void indexAndPush(runtime, dir, options.tsconfig, collectorUrl);
 
-  const env = buildChildEnv({
-    base: process.env,
-    collectorUrl,
-    otel: options.otel,
-    preloads: {
-      start: pathToFileURL(path.join(import.meta.dirname, "preload", "start.mjs")).href,
-      captureRegister: fileUrl("capture/register"),
-      captureForward: fileUrl("capture/forward"),
-      otel: pathToFileURL(path.join(import.meta.dirname, "preload", "otel.mjs")).href,
-    },
-  });
+  const env = buildChildEnv({ base: process.env, collectorUrl, otel: options.otel, preloads: runtime.preloads });
 
   log(`running: ${toShellCommand(options.command)}`);
   const child = spawn(toShellCommand(options.command), { cwd: dir, stdio: "inherit", shell: true, env });
@@ -82,7 +61,7 @@ export async function dev(options: DevOptions): Promise<number> {
 
   const stop = async () => {
     killTree(child);
-    await vite?.close();
+    await dashboard?.close();
     await collector.close();
   };
   process.once("SIGINT", () => void stop().then(() => process.exit(0)));
@@ -96,14 +75,24 @@ export async function dev(options: DevOptions): Promise<number> {
   });
 }
 
-async function indexAndPush(dir: string, tsconfig: string, collectorUrl: string): Promise<void> {
+// A built dashboard is served as files. Only a repo checkout that has not built it falls back to Vite.
+async function startDashboardFor(runtime: Runtime, port: number, collectorUrl: string): Promise<DashboardServer> {
+  if (runtime.dashboard.kind === "static") return startDashboard({ dir: runtime.dashboard.dir, port, collectorUrl });
+
+  process.env.COLLECTOR_URL = collectorUrl; // read by the dashboard's vite.config.ts
+  const { createServer } = await import("vite");
+  const vite = await createServer({ root: runtime.dashboard.root, server: { port, strictPort: true }, logLevel: "warn", clearScreen: false });
+  await vite.listen();
+  return { port: vite.config.server.port as number, close: () => vite.close() };
+}
+
+async function indexAndPush(runtime: Runtime, dir: string, tsconfig: string, collectorUrl: string): Promise<void> {
   const tsconfigPath = path.resolve(dir, tsconfig);
   const rootDir = findWorkspaceRoot(dir); // the same folder capture uses, so ids match
-  const cli = path.join(packageDir("indexer"), "src", "cli.ts");
   const started = Date.now();
   log(`indexing ${path.relative(dir, tsconfigPath) || tsconfig} in the background...`);
 
-  const child = spawn(process.execPath, [require.resolve("tsx/cli"), cli, tsconfigPath, rootDir], {
+  const child = spawn(runtime.indexer.command, [...runtime.indexer.args, tsconfigPath, rootDir], {
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=4096" },
   });

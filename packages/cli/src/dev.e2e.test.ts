@@ -8,9 +8,9 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 
-// Runs the real `dfd dev` on fixtures/app: collector, indexer, the app under tsx with capture preloaded.
+// Runs the real `tracedye dev` on fixtures/app: collector, indexer, the app under tsx with capture preloaded.
 const here = path.dirname(fileURLToPath(import.meta.url));
-const bin = path.resolve(here, "../bin/dfd.mjs");
+const bin = path.resolve(here, "../bin/tracedye.mjs");
 const fixture = path.resolve(here, "../fixtures/app");
 const tsxCli = createRequire(import.meta.url).resolve("tsx/cli");
 
@@ -51,7 +51,7 @@ async function until<T>(what: string, check: () => Promise<T | undefined> | T | 
 async function startDfd(extraArgs: string[]) {
   const collectorPort = await freePort();
   const appPort = await freePort();
-  const dataDir = mkdtempSync(path.join(tmpdir(), "dfd-e2e-"));
+  const dataDir = mkdtempSync(path.join(tmpdir(), "tracedye-e2e-"));
   dataDirs.push(dataDir);
   const child = spawn(
     process.execPath,
@@ -80,7 +80,7 @@ async function mapNodeIds(collector: string): Promise<string[]> {
   return first.nodes.map((n) => n.id);
 }
 
-describe("dfd dev on a fixture app", () => {
+describe("tracedye dev on a fixture app", () => {
   it("captures a request when armed, with ids that match the static map", async () => {
     const { collector, app } = await startDfd(["--arm", "e2e"]);
     // the app follows the collector's armed state by polling

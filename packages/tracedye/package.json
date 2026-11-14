@@ -1,0 +1,54 @@
+{
+  "name": "tracedye",
+  "version": "0.1.0",
+  "description": "See one real request move through your TypeScript app, with the payload at every hop. Dev-only.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "tracedye": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "keywords": [
+    "debugging",
+    "tracing",
+    "typescript",
+    "express",
+    "data-flow",
+    "developer-tools",
+    "opentelemetry"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/san-jay-14/Tracedye.git"
+  },
+  "homepage": "https://github.com/san-jay-14/Tracedye#readme",
+  "bugs": {
+    "url": "https://github.com/san-jay-14/Tracedye/issues"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "@opentelemetry/exporter-trace-otlp-http": "^0.301.2",
+    "@opentelemetry/instrumentation": "^0.301.2",
+    "@opentelemetry/instrumentation-ioredis": "^0.73.0",
+    "@opentelemetry/instrumentation-pg": "^0.78.0",
+    "@opentelemetry/sdk-node": "^0.301.2",
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
+    "ts-morph": "^28.0.0",
+    "typescript": "^5.9.3",
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "vite": "^8.3.8"
+  }
+}

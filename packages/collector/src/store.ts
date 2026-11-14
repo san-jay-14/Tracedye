@@ -1,4 +1,5 @@
-import Database from "better-sqlite3";
+import type { DatabaseSync } from "node:sqlite";
+import { loadSqlite } from "./sqlite";
 import type { CollectorEvent, MapData, MapEdge, MapNode, TriggerRow } from "./types";
 
 const SCHEMA = `
@@ -49,10 +50,22 @@ export interface Store {
   close(): void;
 }
 
+function inTransaction<T>(db: DatabaseSync, work: () => T): T {
+  db.exec("BEGIN");
+  try {
+    const result = work();
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 // Payloads arrive already redacted by the capture package; the store keeps them as given.
 export function openStore(path: string): Store {
-  const db = new Database(path);
-  db.pragma("journal_mode = WAL");
+  const db = new (loadSqlite().DatabaseSync)(path);
+  db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA);
 
   const insertTrigger = db.prepare("INSERT OR IGNORE INTO triggers (id, name, started_at) VALUES (?, ?, ?)");
@@ -63,7 +76,8 @@ export function openStore(path: string): Store {
   const insertNode = db.prepare("INSERT INTO map_nodes (id, kind, label, file, line) VALUES (@id, @kind, @label, @file, @line)");
   const insertEdge = db.prepare("INSERT INTO map_edges (from_id, to_id, provenance) VALUES (@from, @to, @provenance)");
 
-  const addEvents = db.transaction((events: CollectorEvent[]) => {
+  const addEvents = (events: CollectorEvent[]) =>
+    inTransaction(db, () => {
     for (const event of events) {
       insertTrigger.run(event.triggerId, event.triggerName, Date.now());
       insertEvent.run({
@@ -83,13 +97,16 @@ export function openStore(path: string): Store {
         note: event.note ?? null,
       });
     }
-  });
+    });
 
-  const replaceMap = db.transaction((map: MapData) => {
-    db.exec("DELETE FROM map_edges; DELETE FROM map_nodes;");
-    for (const node of map.nodes) insertNode.run({ file: null, line: null, ...node });
-    for (const edge of map.edges) insertEdge.run(edge);
-  });
+  const replaceMap = (map: MapData) =>
+    inTransaction(db, () => {
+      db.exec("DELETE FROM map_edges; DELETE FROM map_nodes;");
+      for (const node of map.nodes) {
+        insertNode.run({ id: node.id, kind: node.kind, label: node.label, file: node.file ?? null, line: node.line ?? null });
+      }
+      for (const edge of map.edges) insertEdge.run({ from: edge.from, to: edge.to, provenance: edge.provenance });
+    });
 
   return {
     addEvents,
@@ -102,23 +119,23 @@ export function openStore(path: string): Store {
            FROM triggers t LEFT JOIN events e ON e.trigger_id = t.id
            GROUP BY t.id ORDER BY t.started_at, t.rowid`,
         )
-        .all() as TriggerRow[];
+        .all() as unknown as TriggerRow[];
     },
 
     getTriggerEvents(triggerId) {
-      const trigger = db.prepare("SELECT id, name FROM triggers WHERE id = ?").get(triggerId) as
+      const trigger = db.prepare("SELECT id, name FROM triggers WHERE id = ?").get(triggerId) as unknown as
         | { id: string; name: string }
         | undefined;
       if (!trigger) return undefined;
-      const rows = db.prepare("SELECT * FROM events WHERE trigger_id = ? ORDER BY seq").all(triggerId) as EventRow[];
+      const rows = db.prepare("SELECT * FROM events WHERE trigger_id = ? ORDER BY seq").all(triggerId) as unknown as EventRow[];
       return rows.map((row) => toEvent(row, trigger.name));
     },
 
     getMap() {
-      const nodes = db.prepare("SELECT id, kind, label, file, line FROM map_nodes ORDER BY id").all() as NodeRow[];
+      const nodes = db.prepare("SELECT id, kind, label, file, line FROM map_nodes ORDER BY id").all() as unknown as NodeRow[];
       const edges = db
         .prepare("SELECT from_id AS 'from', to_id AS 'to', provenance FROM map_edges ORDER BY from_id, to_id")
-        .all() as MapEdge[];
+        .all() as unknown as MapEdge[];
       return { nodes: nodes.map(toNode), edges };
     },
 

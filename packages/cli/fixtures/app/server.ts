@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-// A tiny app for the dfd tests: a request goes through three named functions.
+// A tiny app for the tracedye tests: a request goes through three named functions.
 export function parseName(url: string | undefined) {
   const name = new URL(url ?? "/", "http://localhost").searchParams.get("name") ?? "world";
   return name.trim();

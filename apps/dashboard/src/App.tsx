@@ -59,7 +59,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <h1 className="wordmark">
-          Data flow <em>debugger</em>
+          Trace<em>dye</em>
         </h1>
         <TriggerBar armed={armed} connected={connected} />
         <span className={`status ${state}`} role="status">
@@ -75,8 +75,8 @@ export function App() {
               <p className="empty-title">{connected ? "Nothing mapped yet." : "Waiting for the collector."}</p>
               <p>
                 {connected
-                  ? "Run dfd dev from your project, or send the indexer's output to the collector."
-                  : "Start it with dfd dev, then this page connects by itself."}
+                  ? "Run tracedye dev from your project, or send the indexer's output to the collector."
+                  : "Start it with tracedye dev, then this page connects by itself."}
               </p>
             </div>
           ) : (

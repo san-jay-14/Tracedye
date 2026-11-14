@@ -11,11 +11,11 @@ import { CaptureSpanProcessor } from "capture/otel";
 
 register("@opentelemetry/instrumentation/hook.mjs", import.meta.url);
 
-const collector = process.env.DFD_COLLECTOR_URL ?? "http://localhost:4318";
+const collector = process.env.TRACEDYE_COLLECTOR_URL ?? "http://localhost:4318";
 // The Redis instrumentation only makes a span when something already started one, and there is no
 // HTTP instrumentation here to do that, so it is told not to wait for a parent.
 new NodeSDK({
-  serviceName: "dfd-traced-app",
+  serviceName: "tracedye-traced-app",
   spanProcessors: [
     new CaptureSpanProcessor(),
     // Sent as each span ends, not batched, so hops reach the dashboard while the request is on screen.

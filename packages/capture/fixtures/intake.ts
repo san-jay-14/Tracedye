@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import http, { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { arm, onEvent, type CaptureEvent } from "../src/index";
 import { handleRequest } from "./accounts";
@@ -18,13 +18,23 @@ await new Promise<void>((resolve) => server.listen(0, resolve));
 const port = (server.address() as AddressInfo).port;
 
 arm("intake");
-await (
-  await fetch(`http://localhost:${port}/login?token=qs-secret&page=2`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: "Bearer hdr-secret", cookie: "sid=cookie-secret" },
-    body: JSON.stringify({ email: "a@b.c", password: "hunter2" }),
-  })
-).text();
+await new Promise<void>((resolve, reject) => {
+  const request = http.request(
+    `http://localhost:${port}/login?token=qs-secret&page=2`,
+    {
+      method: "POST",
+      agent: false,
+      headers: { "content-type": "application/json", authorization: "Bearer hdr-secret", cookie: "sid=cookie-secret" },
+    },
+    (res) => {
+      res.resume();
+      res.on("end", resolve);
+    },
+  );
+  request.on("error", reject);
+  request.end(JSON.stringify({ email: "a@b.c", password: "hunter2" }));
+});
 
 console.log(JSON.stringify(events));
-process.exit(0);
+server.closeAllConnections();
+server.close();
