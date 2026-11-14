@@ -1,6 +1,8 @@
 // Proves the package works the way a stranger would use it: pack it, install the tarball into an
 // empty folder with npm (so nothing comes from this repo), and run it on a small app.
 // Needs the network for npm install. Usage: pnpm --filter tracedye verify
+// With --from-registry it skips the build and installs the published package instead:
+//   node scripts/verify.mjs --from-registry
 import { spawn, spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
@@ -12,6 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, "..");
 const fixture = path.resolve(here, "../../cli/fixtures/app");
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const fromRegistry = process.argv.includes("--from-registry");
 
 let failed = 0;
 const check = (ok, what) => {
@@ -42,22 +45,28 @@ async function until(what, fn, ms = 90_000) {
 const work = mkdtempSync(path.join(tmpdir(), "tracedye-verify-"));
 let child;
 try {
-  console.log("1. build and pack");
-  const build = run("node", [path.join(here, "build.mjs")], { cwd: pkgDir });
-  check(build.status === 0, "build succeeds");
-  const pack = run(npm, ["pack", "--json", "--pack-destination", work], { cwd: pkgDir });
-  check(pack.status === 0, "npm pack succeeds");
-  const [info] = JSON.parse(pack.stdout);
-  const files = info.files.map((f) => f.path);
-  check(files.includes("dist/cli.js") && files.includes("dist/dashboard/index.html") && files.includes("README.md") && files.includes("LICENSE"), "tarball has the command, the dashboard, README and LICENSE");
-  check(!files.some((f) => /\.test\.|\.map$|node_modules|\.tracedye/.test(f)), "tarball has no tests, source maps or data");
-  console.log(`   ${info.filename}: ${files.length} files, ${(info.size / 1024).toFixed(0)} KB packed, ${(info.unpackedSize / 1024).toFixed(0)} KB unpacked`);
+  let source = "tracedye@latest"; // what gets installed: the published package, or the tarball built below
+  if (fromRegistry) {
+    console.log("1. the published package (no build)");
+  } else {
+    console.log("1. build and pack");
+    const build = run("node", [path.join(here, "build.mjs")], { cwd: pkgDir });
+    check(build.status === 0, "build succeeds");
+    const pack = run(npm, ["pack", "--json", "--pack-destination", work], { cwd: pkgDir });
+    check(pack.status === 0, "npm pack succeeds");
+    const [info] = JSON.parse(pack.stdout);
+    const files = info.files.map((f) => f.path);
+    check(files.includes("dist/cli.js") && files.includes("dist/dashboard/index.html") && files.includes("README.md") && files.includes("LICENSE"), "tarball has the command, the dashboard, README and LICENSE");
+    check(!files.some((f) => /\.test\.|\.map$|node_modules|\.tracedye/.test(f)), "tarball has no tests, source maps or data");
+    console.log(`   ${info.filename}: ${files.length} files, ${(info.size / 1024).toFixed(0)} KB packed, ${(info.unpackedSize / 1024).toFixed(0)} KB unpacked`);
+    source = path.join(work, info.filename);
+  }
 
-  console.log("2. install the tarball into an empty project");
+  console.log(fromRegistry ? "2. install tracedye from the registry into an empty project" : "2. install the tarball into an empty project");
   const project = path.join(work, "project");
   mkdirSync(project);
   writeFileSync(path.join(project, "package.json"), JSON.stringify({ name: "verify-project", private: true, type: "module" }));
-  const install = run(npm, ["install", "--no-audit", "--no-fund", path.join(work, info.filename), "tsx", "@types/node"], { cwd: project });
+  const install = run(npm, ["install", "--no-audit", "--no-fund", source, "tsx", "@types/node"], { cwd: project });
   check(install.status === 0, "npm install succeeds");
   if (install.status !== 0) console.log(install.stderr.split("\n").slice(-12).join("\n"));
   const installed = path.join(project, "node_modules", "tracedye");

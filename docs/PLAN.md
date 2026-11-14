@@ -73,3 +73,4 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 ## Extra work (outside the 14 days)
 - [x] `tracedye` command (`packages/cli`): `tracedye dev -- <your start command>` runs a TypeScript app with the collector, dashboard, indexer and capture, and `tracedye init` adds a `dev:trace` script. Distributed as a local link for now. See `docs/CLI.md`.
 - [x] Dashboard trigger bar (arm and disarm), so arming no longer needs `curl`.
+- [x] Published `tracedye` 0.1.0 on npm (MIT, Node 22.13+). `node packages/tracedye/scripts/verify.mjs --from-registry` re-checks the published copy.
