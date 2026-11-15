@@ -6,14 +6,17 @@ import { CallStack, HopList, Panel, PayloadDiff } from "./Panels";
 import { EDGE_LOOK, PROVENANCE_DESCRIPTION } from "./provenance";
 import { buildReplayGraph, stepEdgeIds } from "./replay";
 import { ReplayBar } from "./ReplayBar";
+import { SimulateButton } from "./SimulateButton";
 import { TriggerBar } from "./TriggerBar";
 import { useCollector } from "./useCollector";
+import { useDemo } from "./useDemo";
 import { usePulses } from "./usePulses";
 import { useReplay } from "./useReplay";
 
 export function App() {
   const { connected, map, stored, live, armed } = useCollector();
   const events = useMemo(() => dedupeEvents([...stored, ...live]), [stored, live]);
+  const demo = useDemo();
   const replay = useReplay(events);
   const replaying = replay.position !== null;
 
@@ -61,7 +64,7 @@ export function App() {
         <h1 className="wordmark">
           Trace<em>dye</em>
         </h1>
-        <TriggerBar armed={armed} connected={connected} />
+        {demo ? <SimulateButton connected={connected} /> : <TriggerBar armed={armed} connected={connected} />}
         <span className={`status ${state}`} role="status">
           <span className="dot" aria-hidden="true" />
           {state === "offline" ? "Collector offline" : state === "armed" ? `Armed · ${armed}` : "Idle"}
@@ -113,7 +116,12 @@ export function App() {
 
         <aside className="inspector">
           <Panel title="Hops" meta={triggerId && triggerName ? `${triggerName} · ${triggerId.slice(-8)}` : undefined}>
-            <HopList hops={hops} selectedId={selected?.id} onSelect={setSelectedId} />
+            <HopList
+              hops={hops}
+              selectedId={selected?.id}
+              onSelect={setSelectedId}
+              empty={demo ? "No hops yet. Press Simulate login." : undefined}
+            />
           </Panel>
           <Panel title="Payload">
             <PayloadDiff hop={selected} />
@@ -121,6 +129,11 @@ export function App() {
           <Panel title="Call stack">
             <CallStack rows={stack.rows} collapsed={stack.collapsed} />
           </Panel>
+          {demo && (
+            <p className="stack-note">
+              This is a hosted demo. The login runs against a sample app with real Postgres and Redis. The LLM call is a stub, because no API key is set here.
+            </p>
+          )}
           <p className="stack-note">Supported stack (v1): TypeScript on Node with Express, React (Vite), Postgres, Redis and one LLM call.</p>
         </aside>
       </main>

@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/dist
+**/.tracedye
+**/*.db
+**/*.db-wal
+**/*.db-shm
+.claude
+deploy/huggingface/space

@@ -18,9 +18,9 @@ export function Panel({ title, meta, children }: { title: string; meta?: ReactNo
   );
 }
 
-export function HopList({ hops, selectedId, onSelect }: { hops: Hop[]; selectedId?: string; onSelect: (id: string) => void }) {
+export function HopList({ hops, selectedId, onSelect, empty }: { hops: Hop[]; selectedId?: string; onSelect: (id: string) => void; empty?: string }) {
   if (hops.length === 0) {
-    return <p className="empty-note">No hops yet. Arm a trigger, then use your app.</p>;
+    return <p className="empty-note">{empty ?? "No hops yet. Arm a trigger, then use your app."}</p>;
   }
   return (
     <ol className="hops">

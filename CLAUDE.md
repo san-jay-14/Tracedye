@@ -24,10 +24,12 @@ Supported application stack for v1 is TypeScript on Node with Express and React.
 ```
 apps/sample-app/      demo app the tool is built and demoed against
 apps/dashboard/       React Flow dashboard
+apps/demo/            hosted demo: locked-down front server and the Simulate login button
 packages/indexer/     static analysis, produces the map
 packages/capture/     dev-only runtime package (wrapper, correlation, redaction)
 packages/collector/   receives events, stores them, streams to dashboard
 packages/cli/         the `tracedye` command: one-command setup into a codebase (docs/CLI.md)
+deploy/               Dockerfile and start script for the hosted demo (docs/DEPLOY.md)
 docs/
 ```
 

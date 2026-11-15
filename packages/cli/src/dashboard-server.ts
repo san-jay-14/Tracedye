@@ -28,14 +28,36 @@ export interface DashboardServer {
   close(): Promise<void>;
 }
 
-export async function startDashboard(options: { dir: string; port: number; collectorUrl: string }): Promise<DashboardServer> {
+export interface DashboardOptions {
+  dir: string;
+  port: number;
+  collectorUrl: string;
+  // For a public deployment: only collector requests this allows get through, so strangers can read
+  // but never arm, send events or replace the map. It sees the method and the path without the query.
+  allowCollector?: (method: string, target: string) => boolean;
+  // The host's own routes, tried first. Return true once the request has been answered.
+  handle?: (req: http.IncomingMessage, res: http.ServerResponse) => boolean | Promise<boolean>;
+}
+
+export async function startDashboard(options: DashboardOptions): Promise<DashboardServer> {
   const root = path.resolve(options.dir);
   const collector = new URL(options.collectorUrl);
 
-  const server = http.createServer((req, res) => {
-    const url = req.url ?? "/";
-    if (url === PREFIX || url.startsWith(`${PREFIX}/`)) return proxy(req, res, collector, url.slice(PREFIX.length) || "/");
-    serveFile(root, url, res);
+  const server = http.createServer(async (req, res) => {
+    try {
+      if (options.handle && (await options.handle(req, res))) return;
+      const url = req.url ?? "/";
+      if (url === PREFIX || url.startsWith(`${PREFIX}/`)) {
+        const target = url.slice(PREFIX.length) || "/";
+        const allowed = !options.allowCollector || options.allowCollector(req.method ?? "GET", target.split("?")[0]);
+        if (!allowed) return void res.writeHead(403, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "not available here" }));
+        return proxy(req, res, collector, target);
+      }
+      serveFile(root, url, res);
+    } catch {
+      if (!res.headersSent) res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "internal error" }));
+    }
   });
 
   // The page's WebSocket (/collector/stream) is passed through to the collector's /stream.

@@ -108,3 +108,62 @@ describe("passing through to the collector", () => {
     expect(failed).toBe(true);
   });
 });
+
+describe("a locked-down deployment", () => {
+  let locked: DashboardServer;
+  const calls: string[] = [];
+
+  beforeEach(async () => {
+    calls.length = 0;
+    locked = await startDashboard({
+      dir,
+      port: 0,
+      collectorUrl: `http://localhost:${collector.port}`,
+      allowCollector: (method, target) => method === "GET" && (target === "/state" || target === "/triggers"),
+      handle: async (req, res) => {
+        calls.push(`${req.method} ${req.url}`);
+        if (req.url !== "/own/route") return false;
+        res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ own: true }));
+        return true;
+      },
+    });
+  });
+
+  afterEach(async () => {
+    await locked.close();
+  });
+
+  it("lets through only the collector requests it allows", async () => {
+    const lockedBase = `http://localhost:${locked.port}`;
+    expect(await (await fetch(`${lockedBase}/collector/state`)).json()).toEqual({ armed: null });
+    expect(await (await fetch(`${lockedBase}/collector/triggers`)).json()).toEqual([]);
+  });
+
+  it("blocks everything else with 403, whatever the method, and the collector never sees it", async () => {
+    const lockedBase = `http://localhost:${locked.port}`;
+    for (const [method, target] of [
+      ["POST", "/collector/events"],
+      ["POST", "/collector/map"],
+      ["POST", "/collector/triggers/x/arm"],
+      ["POST", "/collector/v1/traces"],
+      ["GET", "/collector/triggers/t1/events"],
+    ]) {
+      const response = await fetch(`${lockedBase}${target}`, { method, body: method === "POST" ? "[]" : undefined });
+      expect(response.status, `${method} ${target}`).toBe(403);
+    }
+    expect(await (await fetch(`${base}/collector/state`)).json()).toEqual({ armed: null }); // still not armed
+    expect(await (await fetch(`${base}/collector/triggers`)).json()).toEqual([]); // nothing was stored
+  });
+
+  it("matches the path without its query string", async () => {
+    const response = await fetch(`http://localhost:${locked.port}/collector/state?x=1`);
+    expect(response.status).toBe(200);
+  });
+
+  it("runs the host's own routes first, and falls through when they decline", async () => {
+    const lockedBase = `http://localhost:${locked.port}`;
+    expect(await (await fetch(`${lockedBase}/own/route`)).json()).toEqual({ own: true });
+    expect(await (await fetch(lockedBase)).text()).toContain("<title>Tracedye</title>");
+    expect(calls).toEqual(["GET /own/route", "GET /"]);
+  });
+});

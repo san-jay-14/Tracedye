@@ -862,3 +862,14 @@ button.hop.selected {
     padding: 8px 10px;
   }
 }
+
+.demo-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .demo-hint {
+    display: none;
+  }
+}
