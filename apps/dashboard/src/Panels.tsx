@@ -51,7 +51,7 @@ export function HopList({ hops, selectedId, onSelect, empty }: { hops: Hop[]; se
 
 const SIGN: Record<DiffRow["status"], string> = { same: "", added: "+", removed: "−", changed: "~" };
 
-export function PayloadDiff({ hop }: { hop?: Hop }) {
+export function PayloadDiff({ hop }: { hop?: Pick<Hop, "before" | "after" | "note"> }) {
   if (!hop) return <p className="empty-note">Select a hop to see what went in and what came out.</p>;
   if (hop.before === undefined && hop.after === undefined) {
     return <p className="empty-note">No payload was captured for this hop.</p>;

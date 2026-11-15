@@ -1,4 +1,4 @@
-import { Background, BackgroundVariant, Controls, MarkerType, ReactFlow, useReactFlow, type Edge, type Node } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, useReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, type ReactNode } from "react";
 import type { Graph } from "./graph";
@@ -18,24 +18,35 @@ interface Props {
   selectedEdgeId?: string;
   onEdgeClick: (edgeId: string) => void;
   onOpenGroup: (nodeId: string) => void; // a box that stands for several nodes was clicked
+  focusId?: string; // the node being looked at; the rest of the picture is dimmed
+  onSelectNode: (nodeId: string) => void;
 }
 
-export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, selectedEdgeId, onEdgeClick, onOpenGroup }: Props) {
+export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, selectedEdgeId, onEdgeClick, onOpenGroup, focusId, onSelectNode }: Props) {
   // Positions and labels only change with the graph itself, not with every packet.
   const positions = useMemo(() => {
     const laidOut = layoutGraph ?? graph;
     return layoutNodes(laidOut.nodes, laidOut.edges);
   }, [graph, layoutGraph]);
   const base = useMemo(() => toFlow(graph, positions), [graph, positions]);
-  const nodes = useMemo(() => base.nodes.map((node) => withRipple(node, arrivals[node.id])), [base.nodes, arrivals]);
+  const near = useMemo(() => neighboursOf(graph, focusId), [graph, focusId]);
+  const nodes = useMemo(
+    () =>
+      base.nodes.map((node) => {
+        const lit = withRipple(node, arrivals[node.id]);
+        if (!near) return lit;
+        return { ...lit, className: `${lit.className} ${node.id === focusId ? "node-focus" : near.has(node.id) ? "" : "dim"}` };
+      }),
+    [base.nodes, arrivals, near, focusId],
+  );
   const edges = useMemo(
     () =>
       base.edges.map((edge) => ({
         ...edge,
-        className: `${edge.className} ${edge.id === selectedEdgeId ? "edge-selected" : ""}`,
+        className: `${edge.className} ${edge.id === selectedEdgeId ? "edge-selected" : ""} ${near && !(near.has(edge.source) && near.has(edge.target) && (edge.source === focusId || edge.target === focusId)) ? "dim" : ""}`,
         data: { pulse: pulses[edge.id] ?? 0, travelMs },
       })),
-    [base.edges, pulses, travelMs, selectedEdgeId],
+    [base.edges, pulses, travelMs, selectedEdgeId, near, focusId],
   );
 
   return (
@@ -44,7 +55,8 @@ export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, sel
       edges={edges}
       edgeTypes={edgeTypes}
       onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
-      onNodeClick={(_, node) => (node.data as { container?: boolean }).container && onOpenGroup(node.id)}
+      onNodeClick={(_, node) => ((node.data as { container?: boolean }).container ? onOpenGroup(node.id) : onSelectNode(node.id))}
+      onPaneClick={() => focusId && onSelectNode(focusId)}
       nodesDraggable={false}
       colorMode="dark"
       fitView
@@ -54,9 +66,21 @@ export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, sel
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--dot)" />
       <Controls showInteractive={false} />
+      <MiniMap pannable zoomable ariaLabel="Overview of the whole map" style={{ width: 150, height: 96 }} nodeColor="#6b6b73" nodeStrokeWidth={0} maskColor="rgba(9, 9, 10, 0.7)" />
       <RefitOnChange signature={(layoutGraph ?? graph).nodes.map((n) => n.id).join("|")} />
     </ReactFlow>
   );
+}
+
+// The node and what it directly calls or is called by. Undefined when nothing is being looked at.
+function neighboursOf(graph: Graph, focusId: string | undefined): Set<string> | undefined {
+  if (!focusId || !graph.nodes.some((n) => n.id === focusId)) return undefined;
+  const near = new Set([focusId]);
+  for (const edge of graph.edges) {
+    if (edge.from === focusId) near.add(edge.to);
+    if (edge.to === focusId) near.add(edge.from);
+  }
+  return near;
 }
 
 // Frames the whole picture again, with a glide, whenever the set of boxes changes: the map arrives,

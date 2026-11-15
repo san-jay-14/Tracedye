@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlowCanvas } from "./FlowCanvas";
 import { BACKEND, abstractGraph, buildHierarchy, visibleId } from "./abstraction";
+import { filterGraph, type Hideable } from "./filters";
 import { buildGraph } from "./graph";
 import { callStackOf, dedupeEvents, edgeId, hopsOf } from "./hops";
 import { CallStack } from "./CallStack";
 import { Inspector, type Tab } from "./Inspector";
 import { LevelBar } from "./LevelBar";
+import { NodeDetails } from "./NodeDetails";
+import { SearchBox } from "./SearchBox";
+import { Shortcuts } from "./Shortcuts";
 import { HopList, PayloadDiff } from "./Panels";
 import { EDGE_LOOK, PROVENANCE_DESCRIPTION } from "./provenance";
 import { buildReplayGraph, stepEdgeIds } from "./replay";
@@ -53,11 +57,18 @@ export function App() {
   const everything = useMemo(() => buildGraph(map, events), [map, events]);
   const hierarchy = useMemo(() => buildHierarchy(everything.nodes, everything.edges), [everything]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
-  const graph = useMemo(() => abstractGraph(fullGraph, hierarchy, expanded), [fullGraph, hierarchy, expanded]);
+  const [hidden, setHidden] = useState<ReadonlySet<Hideable>>(() => new Set());
+  const graph = useMemo(() => filterGraph(abstractGraph(fullGraph, hierarchy, expanded), hidden), [fullGraph, hierarchy, expanded, hidden]);
   const layoutGraph = useMemo(
-    () => (replayGraph ? abstractGraph(replayGraph.layout, hierarchy, expanded) : undefined),
-    [replayGraph, hierarchy, expanded],
+    () => (replayGraph ? filterGraph(abstractGraph(replayGraph.layout, hierarchy, expanded), hidden) : undefined),
+    [replayGraph, hierarchy, expanded, hidden],
   );
+  const toggleHidden = (what: Hideable) =>
+    setHidden((now) => {
+      const next = new Set(now);
+      if (!next.delete(what)) next.add(what);
+      return next;
+    });
   const seeAs = (id: string) => visibleId(hierarchy, expanded, id);
 
   // Each step sends one packet along its edges; the position changing is what starts it. Calls inside
@@ -88,6 +99,8 @@ export function App() {
       else if (e.key === "ArrowRight") playback.step(1);
       else if (e.key === "ArrowLeft") playback.step(-1);
       else if (e.key === "[") setInspectorOpen((o) => !o);
+      else if (e.key === "Escape") (setFocusId(undefined), setShowKeys(false));
+      else if (e.key === "?") setShowKeys((on) => !on);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -96,6 +109,8 @@ export function App() {
   const [tab, setTab] = useState<Tab>("hops");
   const [inspectorOpen, setInspectorOpen] = useState(loadOpen);
   useEffect(() => saveOpen(inspectorOpen), [inspectorOpen]);
+  const [showKeys, setShowKeys] = useState(false);
+  const [focusId, setFocusId] = useState<string>();
   const [selectedId, setSelectedId] = useState<string>();
   // Stepping clears a manual choice, so the payload follows the hop the replay just reached.
   useEffect(() => setSelectedId(undefined), [position]);
@@ -113,6 +128,23 @@ export function App() {
     if (hit) chooseHop(hit.id);
   };
 
+  // Clicking a function looks at it: the rest dims and its calls show in the Function tab. Again to let go.
+  const selectNode = (id: string) => {
+    setFocusId((now) => (now === id ? undefined : id));
+    setTab("node");
+    setInspectorOpen(true);
+  };
+  // Finding a function opens whatever boxes it is inside first.
+  const reveal = (id: string) => {
+    const group = hierarchy.groupOf.get(id);
+    setExpanded((now) => new Set(now).add(BACKEND).add(group ?? BACKEND));
+    setFocusId(id);
+    setTab("node");
+    setInspectorOpen(true);
+  };
+  const focusNode = fullGraph.nodes.find((n) => n.id === focusId);
+  const focusCalls = useMemo(() => stack.rows.filter((row) => row.nodeId === focusId), [stack.rows, focusId]);
+
   const open = (id: string) => setExpanded((now) => new Set(now).add(id));
   const close = (id: string) => setExpanded((now) => (id === BACKEND ? new Set() : new Set([...now].filter((g) => g !== id))));
 
@@ -126,6 +158,10 @@ export function App() {
           Trace<em>dye</em>
         </h1>
         {demo ? <SimulateButton connected={connected} /> : <TriggerBar armed={armed} connected={connected} />}
+        <SearchBox nodes={fullGraph.nodes} onPick={reveal} />
+        <button className="help" onClick={() => setShowKeys(true)} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
+          ?
+        </button>
         <span className={`status ${state}`} role="status">
           <span className="dot" aria-hidden="true" />
           {state === "offline" ? "Collector offline" : state === "armed" ? `Armed · ${armed}` : "Idle"}
@@ -144,12 +180,13 @@ export function App() {
               </p>
             </div>
           ) : (
-            <FlowCanvas graph={graph} layoutGraph={layoutGraph} pulses={pulses} arrivals={arrivals} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} onOpenGroup={open} />
+            <FlowCanvas graph={graph} layoutGraph={layoutGraph} pulses={pulses} arrivals={arrivals} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} onOpenGroup={open} focusId={focusId} onSelectNode={selectNode} />
           )}
 
           <ul className="legend" aria-label="Edge legend">
             {(["observed", "static", "inferred"] as const).map((provenance) => (
-              <li key={provenance} title={PROVENANCE_DESCRIPTION[provenance]}>
+              <li key={provenance}>
+                <button className={hidden.has(provenance) ? "off" : undefined} aria-pressed={!hidden.has(provenance)} onClick={() => toggleHidden(provenance)} title={`${PROVENANCE_DESCRIPTION[provenance]} Click to ${hidden.has(provenance) ? "show" : "hide"}.`}>
                 <svg width="28" height="8" aria-hidden="true">
                   <line
                     x1="1"
@@ -164,11 +201,14 @@ export function App() {
                   />
                 </svg>
                 {provenance}
+                </button>
               </li>
             ))}
-            <li title="A function in the code that has not run during any captured trigger">
-              <span className="swatch-unseen" aria-hidden="true" />
-              never ran
+            <li>
+              <button className={hidden.has("unseen") ? "off" : undefined} aria-pressed={!hidden.has("unseen")} onClick={() => toggleHidden("unseen")} title="Code that has not run in the request on screen. Click to hide it.">
+                <span className="swatch-unseen" aria-hidden="true" />
+                never ran
+              </button>
             </li>
           </ul>
 
@@ -198,9 +238,11 @@ export function App() {
             <HopList hops={hops} selectedId={selected?.id} onSelect={chooseHop} empty={demo ? "No hops yet. Press Simulate login." : undefined} />
           )}
           {tab === "payload" && <PayloadDiff hop={selected} />}
+          {tab === "node" && <NodeDetails node={focusNode} calls={focusCalls} />}
           {tab === "stack" && <CallStack rows={stack.rows} collapsed={stack.collapsed} />}
         </Inspector>
       </main>
+      {showKeys && <Shortcuts onClose={() => setShowKeys(false)} />}
     </div>
   );
 }

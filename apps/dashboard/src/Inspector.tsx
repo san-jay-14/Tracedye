@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 
-export type Tab = "hops" | "payload" | "stack";
+export type Tab = "hops" | "payload" | "node" | "stack";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "hops", label: "Hops" },
   { id: "payload", label: "Payload" },
+  { id: "node", label: "Function" },
   { id: "stack", label: "Call stack" },
 ];
 
