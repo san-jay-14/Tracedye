@@ -13,11 +13,12 @@ interface Props {
   // Where nodes go. Replay passes the whole trigger here so nothing moves while stepping.
   layoutGraph?: Graph;
   pulses: Record<string, number>;
+  travelMs: number; // how long a packet takes to cross an edge; 0 turns the animation off
   selectedEdgeId?: string;
   onEdgeClick: (edgeId: string) => void;
 }
 
-export function FlowCanvas({ graph, layoutGraph, pulses, selectedEdgeId, onEdgeClick }: Props) {
+export function FlowCanvas({ graph, layoutGraph, pulses, travelMs, selectedEdgeId, onEdgeClick }: Props) {
   // Positions and labels only change with the graph itself, not with every packet.
   const base = useMemo(() => toFlow(graph, layoutGraph ?? graph), [graph, layoutGraph]);
   const edges = useMemo(
@@ -25,9 +26,9 @@ export function FlowCanvas({ graph, layoutGraph, pulses, selectedEdgeId, onEdgeC
       base.edges.map((edge) => ({
         ...edge,
         className: `${edge.className} ${edge.id === selectedEdgeId ? "edge-selected" : ""}`,
-        data: { pulse: pulses[edge.id] ?? 0 },
+        data: { pulse: pulses[edge.id] ?? 0, travelMs },
       })),
-    [base.edges, pulses, selectedEdgeId],
+    [base.edges, pulses, travelMs, selectedEdgeId],
   );
 
   return (

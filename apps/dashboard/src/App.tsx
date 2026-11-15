@@ -1,53 +1,60 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlowCanvas } from "./FlowCanvas";
 import { buildGraph } from "./graph";
-import { callStackOf, dedupeEvents, hopsOf, latestTriggerId } from "./hops";
+import { callStackOf, dedupeEvents, hopsOf } from "./hops";
 import { CallStack, HopList, Panel, PayloadDiff } from "./Panels";
 import { EDGE_LOOK, PROVENANCE_DESCRIPTION } from "./provenance";
 import { buildReplayGraph, stepEdgeIds } from "./replay";
-import { ReplayBar } from "./ReplayBar";
 import { SimulateButton } from "./SimulateButton";
+import { Transport } from "./Transport";
 import { TriggerBar } from "./TriggerBar";
 import { useCollector } from "./useCollector";
 import { useDemo } from "./useDemo";
-import { usePulses } from "./usePulses";
-import { useReplay } from "./useReplay";
+import { usePlayback } from "./usePlayback";
+
+const TRAVEL_SHARE = 0.85; // a packet takes this much of a step, leaving a beat before the next one
 
 export function App() {
   const { connected, map, stored, live, armed } = useCollector();
   const events = useMemo(() => dedupeEvents([...stored, ...live]), [stored, live]);
   const demo = useDemo();
-  const replay = useReplay(events);
-  const replaying = replay.position !== null;
+  const liveTriggerIds = useMemo(() => new Set(live.map((e) => e.triggerId)), [live]);
+  const playback = usePlayback(events, liveTriggerIds);
+  const { triggerId, position, total, stepMs, shownEvents } = playback;
 
-  // Live, the canvas shows everything stored; replaying, only the chosen trigger up to the current step.
-  const liveGraph = useMemo(() => buildGraph(map, events), [map, events]);
+  // The canvas shows the request on screen up to the current step; with none yet, just the map.
   const replayGraph = useMemo(
-    () => (replay.shownEvents ? buildReplayGraph(map, replay.ordered, replay.shownEvents) : undefined),
-    [map, replay.ordered, replay.shownEvents],
+    () => (triggerId ? buildReplayGraph(map, playback.ordered, shownEvents) : undefined),
+    [map, triggerId, playback.ordered, shownEvents],
   );
-  const graph = replayGraph?.graph ?? liveGraph;
+  const graph = replayGraph?.graph ?? buildGraph(map, []);
 
-  const livePulses = usePulses(live);
-  const replayPulses = useMemo(
-    () => Object.fromEntries(stepEdgeIds(replay.currentStep).map((id) => [id, replay.position ?? 0])),
-    [replay.currentStep, replay.position],
+  // Each step sends one packet along its edges; the position changing is what starts it.
+  const { sent, currentStep } = playback;
+  const pulses = useMemo(
+    () => (sent && sent.position === position ? Object.fromEntries(stepEdgeIds(currentStep).map((id) => [id, sent.n])) : {}),
+    [sent, currentStep, position],
   );
-  const pulses = replaying ? replayPulses : livePulses;
 
-  // The panels follow the latest trigger, or the replayed one up to the current step.
-  const triggerId = replaying ? replay.triggerId : latestTriggerId(events);
-  const triggerEvents = useMemo(
-    () => (replay.shownEvents ?? events).filter((e) => e.triggerId === triggerId),
-    [events, replay.shownEvents, triggerId],
-  );
-  const hops = useMemo(() => hopsOf(triggerEvents), [triggerEvents]);
-  const stack = useMemo(() => callStackOf(triggerEvents, triggerId ?? ""), [triggerEvents, triggerId]);
+  const hops = useMemo(() => hopsOf(shownEvents), [shownEvents]);
+  const stack = useMemo(() => callStackOf(shownEvents, triggerId ?? ""), [shownEvents, triggerId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = e.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName);
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === " ") (e.preventDefault(), playback.playing ? playback.pause() : playback.play());
+      else if (e.key === "ArrowRight") playback.step(1);
+      else if (e.key === "ArrowLeft") playback.step(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const [selectedId, setSelectedId] = useState<string>();
   // Stepping clears a manual choice, so the payload follows the hop the replay just reached.
-  useEffect(() => setSelectedId(undefined), [replay.position]);
-  const selected = hops.find((hop) => hop.id === selectedId) ?? (replaying ? hops.at(-1) : hops[0]);
+  useEffect(() => setSelectedId(undefined), [position]);
+  const selected = hops.find((hop) => hop.id === selectedId) ?? (position < total ? hops.at(-1) : hops[0]);
   const selectedEdgeId = selected && `${selected.from}->${selected.to}`;
 
   const selectEdge = (edgeId: string) => {
@@ -56,10 +63,10 @@ export function App() {
   };
 
   const state = !connected ? "offline" : armed ? "armed" : "idle";
-  const triggerName = triggerEvents[0]?.triggerName;
+  const triggerName = playback.triggers.find((t) => t.id === triggerId)?.name;
 
   return (
-    <div className="app">
+    <div className="app" style={{ ["--tempo" as string]: `${stepMs}ms` }}>
       <header className="topbar">
         <h1 className="wordmark">
           Trace<em>dye</em>
@@ -83,7 +90,7 @@ export function App() {
               </p>
             </div>
           ) : (
-            <FlowCanvas graph={graph} layoutGraph={replayGraph?.layout} pulses={pulses} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
+            <FlowCanvas graph={graph} layoutGraph={replayGraph?.layout} pulses={pulses} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
           )}
 
           <ul className="legend" aria-label="Edge legend">
@@ -111,7 +118,7 @@ export function App() {
             </li>
           </ul>
 
-          <ReplayBar replay={replay} />
+          <Transport playback={playback} />
         </section>
 
         <aside className="inspector">
