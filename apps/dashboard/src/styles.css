@@ -907,3 +907,52 @@ button.toggle.on {
 button.toggle {
   border: 1px solid var(--line);
 }
+
+/* Motion. Every duration comes from --tempo, which the playback speed sets, so the whole
+   picture speeds up and slows down together. */
+.packet {
+  filter: drop-shadow(0 0 6px var(--observed));
+}
+
+.react-flow__node.node {
+  transition: border-color calc(var(--tempo) * 0.4), background-color calc(var(--tempo) * 0.4), color calc(var(--tempo) * 0.4);
+}
+
+.ripple {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1.5px solid var(--observed);
+  opacity: 0;
+  pointer-events: none;
+  /* waits for the packet to arrive, then spreads out and fades */
+  animation: ripple calc(var(--tempo) * 0.7) ease-out calc(var(--tempo) * 0.8) 1;
+}
+
+@keyframes ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.18, 1.45);
+  }
+}
+
+.react-flow__edge.edge-observed .react-flow__edge-path {
+  animation: edge-in calc(var(--tempo) * 0.5) ease-out;
+}
+
+@keyframes edge-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple,
+  .packet {
+    display: none;
+  }
+}

@@ -36,6 +36,12 @@ export function App() {
     [sent, currentStep, position],
   );
 
+  // The node each packet is heading for ripples when the packet gets there.
+  const arrivals = useMemo(
+    () => (sent && sent.position === position && currentStep ? Object.fromEntries(currentStep.traversals.map((t) => [t.to, sent.n])) : {}),
+    [sent, currentStep, position],
+  );
+
   const hops = useMemo(() => hopsOf(shownEvents), [shownEvents]);
   const stack = useMemo(() => callStackOf(shownEvents, triggerId ?? ""), [shownEvents, triggerId]);
 
@@ -90,7 +96,7 @@ export function App() {
               </p>
             </div>
           ) : (
-            <FlowCanvas graph={graph} layoutGraph={replayGraph?.layout} pulses={pulses} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
+            <FlowCanvas graph={graph} layoutGraph={replayGraph?.layout} pulses={pulses} arrivals={arrivals} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
           )}
 
           <ul className="legend" aria-label="Edge legend">

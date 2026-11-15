@@ -1,6 +1,6 @@
 import { Background, BackgroundVariant, Controls, MarkerType, ReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { Graph } from "./graph";
 import { NODE_WIDTH, layoutNodes } from "./layout";
 import { PacketEdge } from "./PacketEdge";
@@ -13,14 +13,20 @@ interface Props {
   // Where nodes go. Replay passes the whole trigger here so nothing moves while stepping.
   layoutGraph?: Graph;
   pulses: Record<string, number>;
+  arrivals: Record<string, number>; // node id -> number of the packet that just reached it, to ripple it
   travelMs: number; // how long a packet takes to cross an edge; 0 turns the animation off
   selectedEdgeId?: string;
   onEdgeClick: (edgeId: string) => void;
 }
 
-export function FlowCanvas({ graph, layoutGraph, pulses, travelMs, selectedEdgeId, onEdgeClick }: Props) {
+export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, selectedEdgeId, onEdgeClick }: Props) {
   // Positions and labels only change with the graph itself, not with every packet.
-  const base = useMemo(() => toFlow(graph, layoutGraph ?? graph), [graph, layoutGraph]);
+  const positions = useMemo(() => {
+    const laidOut = layoutGraph ?? graph;
+    return layoutNodes(laidOut.nodes, laidOut.edges);
+  }, [graph, layoutGraph]);
+  const base = useMemo(() => toFlow(graph, positions), [graph, positions]);
+  const nodes = useMemo(() => base.nodes.map((node) => withRipple(node, arrivals[node.id])), [base.nodes, arrivals]);
   const edges = useMemo(
     () =>
       base.edges.map((edge) => ({
@@ -35,7 +41,7 @@ export function FlowCanvas({ graph, layoutGraph, pulses, travelMs, selectedEdgeI
     // Keyed by node count so the view re-fits when the map arrives or grows (fitView only runs on mount).
     <ReactFlow
       key={(layoutGraph ?? graph).nodes.length}
-      nodes={base.nodes}
+      nodes={nodes}
       edges={edges}
       edgeTypes={edgeTypes}
       onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
@@ -58,9 +64,14 @@ function nodeCaption(node: Graph["nodes"][number]): string {
   return node.kind === "app" ? place || KIND_WORD.app : [KIND_WORD[node.kind], place].filter(Boolean).join(" · ");
 }
 
-function toFlow(graph: Graph, layoutGraph: Graph): { nodes: Node[]; edges: Edge[] } {
-  const positions = layoutNodes(layoutGraph.nodes, layoutGraph.edges);
+// A ring that spreads from a node when a packet reaches it. Keyed by the packet number, so each
+// arrival is a fresh element and the animation plays again.
+function withRipple(node: Node, arrival: number | undefined): Node {
+  if (!arrival) return node;
+  return { ...node, data: { label: (<>{(node.data as { label: ReactNode }).label}<span key={arrival} className="ripple" aria-hidden="true" /></>) } };
+}
 
+function toFlow(graph: Graph, positions: Map<string, { x: number; y: number }>): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = graph.nodes.map((node) => ({
     id: node.id,
     position: positions.get(node.id) ?? { x: 0, y: 0 },
