@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { FlowCanvas } from "./FlowCanvas";
 import { buildGraph } from "./graph";
 import { callStackOf, dedupeEvents, hopsOf } from "./hops";
-import { CallStack, HopList, Panel, PayloadDiff } from "./Panels";
+import { CallStack } from "./CallStack";
+import { Inspector, type Tab } from "./Inspector";
+import { HopList, PayloadDiff } from "./Panels";
 import { EDGE_LOOK, PROVENANCE_DESCRIPTION } from "./provenance";
 import { buildReplayGraph, stepEdgeIds } from "./replay";
 import { SimulateButton } from "./SimulateButton";
@@ -11,6 +13,22 @@ import { TriggerBar } from "./TriggerBar";
 import { useCollector } from "./useCollector";
 import { useDemo } from "./useDemo";
 import { usePlayback } from "./usePlayback";
+
+const OPEN_KEY = "tracedye.inspector";
+const loadOpen = () => {
+  try {
+    return localStorage.getItem(OPEN_KEY) !== "closed"; // open unless the viewer closed it
+  } catch {
+    return true;
+  }
+};
+const saveOpen = (open: boolean) => {
+  try {
+    localStorage.setItem(OPEN_KEY, open ? "open" : "closed");
+  } catch {
+    // not remembered, that is all
+  }
+};
 
 const TRAVEL_SHARE = 0.85; // a packet takes this much of a step, leaving a beat before the next one
 
@@ -52,20 +70,30 @@ export function App() {
       if (e.key === " ") (e.preventDefault(), playback.playing ? playback.pause() : playback.play());
       else if (e.key === "ArrowRight") playback.step(1);
       else if (e.key === "ArrowLeft") playback.step(-1);
+      else if (e.key === "[") setInspectorOpen((o) => !o);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const [tab, setTab] = useState<Tab>("hops");
+  const [inspectorOpen, setInspectorOpen] = useState(loadOpen);
+  useEffect(() => saveOpen(inspectorOpen), [inspectorOpen]);
   const [selectedId, setSelectedId] = useState<string>();
   // Stepping clears a manual choice, so the payload follows the hop the replay just reached.
   useEffect(() => setSelectedId(undefined), [position]);
   const selected = hops.find((hop) => hop.id === selectedId) ?? (position < total ? hops.at(-1) : hops[0]);
   const selectedEdgeId = selected && `${selected.from}->${selected.to}`;
 
+  // Picking a hop, in the list or on the canvas, opens its payload.
+  const chooseHop = (id: string) => {
+    setSelectedId(id);
+    setTab("payload");
+    setInspectorOpen(true);
+  };
   const selectEdge = (edgeId: string) => {
     const hit = [...hops].reverse().find((hop) => `${hop.from}->${hop.to}` === edgeId);
-    if (hit) setSelectedId(hit.id);
+    if (hit) chooseHop(hit.id);
   };
 
   const state = !connected ? "offline" : armed ? "armed" : "idle";
@@ -84,7 +112,7 @@ export function App() {
         </span>
       </header>
 
-      <main>
+      <main className={inspectorOpen ? undefined : "wide"}>
         <section className="canvas" aria-label="Flow map">
           {graph.nodes.length === 0 ? (
             <div className="empty">
@@ -127,28 +155,30 @@ export function App() {
           <Transport playback={playback} />
         </section>
 
-        <aside className="inspector">
-          <Panel title="Hops" meta={triggerId && triggerName ? `${triggerName} Â· ${triggerId.slice(-8)}` : undefined}>
-            <HopList
-              hops={hops}
-              selectedId={selected?.id}
-              onSelect={setSelectedId}
-              empty={demo ? "No hops yet. Press Simulate login." : undefined}
-            />
-          </Panel>
-          <Panel title="Payload">
-            <PayloadDiff hop={selected} />
-          </Panel>
-          <Panel title="Call stack">
-            <CallStack rows={stack.rows} collapsed={stack.collapsed} />
-          </Panel>
-          {demo && (
-            <p className="stack-note">
-              This is a hosted demo. The login runs against a sample app with real Postgres and Redis. The LLM call is a stub, because no API key is set here.
-            </p>
+        <Inspector
+          open={inspectorOpen}
+          onToggle={() => setInspectorOpen((o) => !o)}
+          tab={tab}
+          onTab={setTab}
+          counts={{ hops: hops.length, stack: stack.rows.length }}
+          title={triggerId && triggerName ? `${triggerName} · ${triggerId.slice(-8)}` : undefined}
+          footer={
+            <>
+              {demo && (
+                <p className="stack-note">
+                  This is a hosted demo. The login runs against a sample app with real Postgres and Redis. The LLM call is a stub, because no API key is set here.
+                </p>
+              )}
+              <p className="stack-note">Supported stack (v1): TypeScript on Node with Express, React (Vite), Postgres, Redis and one LLM call.</p>
+            </>
+          }
+        >
+          {tab === "hops" && (
+            <HopList hops={hops} selectedId={selected?.id} onSelect={chooseHop} empty={demo ? "No hops yet. Press Simulate login." : undefined} />
           )}
-          <p className="stack-note">Supported stack (v1): TypeScript on Node with Express, React (Vite), Postgres, Redis and one LLM call.</p>
-        </aside>
+          {tab === "payload" && <PayloadDiff hop={selected} />}
+          {tab === "stack" && <CallStack rows={stack.rows} collapsed={stack.collapsed} />}
+        </Inspector>
       </main>
     </div>
   );

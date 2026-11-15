@@ -956,3 +956,189 @@ button.toggle {
     display: none;
   }
 }
+
+/* Inspector: tabs, and folds away */
+main {
+  transition: grid-template-columns 0.25s ease;
+}
+
+main.wide {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
+.inspector {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.inspector.closed {
+  border-left: 0;
+}
+
+.inspector-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.inspector-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.inspector-toggle {
+  position: absolute;
+  top: 14px;
+  left: -14px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.inspector-toggle:hover {
+  color: var(--text);
+}
+
+.inspector.closed .inspector-toggle {
+  left: -38px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.on {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.count {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  background: var(--subtle);
+  border-radius: 999px;
+}
+
+.inspector-title {
+  margin: 0;
+  padding: 10px 20px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.subhead {
+  margin: 14px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.subhead:first-child {
+  margin-top: 0;
+}
+
+/* The running stack: frames pile up, newest on top, and slide in when pushed. */
+.frames {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.frame {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: -1px;
+  padding: 10px 12px;
+  font-weight: 500;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  animation: push 0.28s ease-out;
+}
+
+.frame:first-child {
+  border-radius: 10px 10px 0 0;
+}
+
+.frame:last-child {
+  border-radius: 0 0 10px 10px;
+}
+
+.frame:only-child {
+  border-radius: 10px;
+}
+
+.frame.top {
+  color: var(--paper);
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.frame.top .tag {
+  color: var(--paper);
+  border-color: color-mix(in srgb, var(--paper) 45%, transparent);
+}
+
+.frame .tag:last-child {
+  margin-left: auto;
+}
+
+@keyframes push {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@media (max-width: 900px) {
+  main.wide {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 0;
+  }
+
+  .inspector-toggle {
+    display: none;
+  }
+}

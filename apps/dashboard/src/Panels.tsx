@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { diffPayload, type DiffRow } from "./diff";
-import { labelOf, type CallRow, type CollapsedRow, type Hop } from "./hops";
+import { labelOf, type Hop } from "./hops";
 
 const KIND_LABEL: Record<Hop["kind"], string> = { http: "HTTP", db: "Postgres", cache: "Redis", llm: "LLM", ws: "WebSocket" };
 
@@ -87,28 +87,5 @@ export function PayloadDiff({ hop }: { hop?: Hop }) {
       </div>
       <p className="hint">Secrets are redacted before they leave your app.</p>
     </div>
-  );
-}
-
-export function CallStack({ rows, collapsed }: { rows: CallRow[]; collapsed: CollapsedRow[] }) {
-  if (rows.length === 0) return <p className="empty-note">No function calls captured yet.</p>;
-  const longest = Math.max(...rows.map((r) => r.durationMs ?? 0), 1);
-  return (
-    <ul className="stack">
-      {rows.map((row) => (
-        <li key={row.spanId} style={{ ["--depth" as string]: row.depth }} className={row.threw ? "threw" : undefined}>
-          <span className="stack-name">{labelOf(row.nodeId)}</span>
-          {row.threw && <span className="tag error">threw</span>}
-          <span className="mono muted stack-time">{row.durationMs === undefined ? "…" : `${row.durationMs.toFixed(1)} ms`}</span>
-          <span className="stack-bar" style={{ width: `${Math.max(1.5, ((row.durationMs ?? 0) / longest) * 100)}%` }} />
-        </li>
-      ))}
-      {collapsed.map((c) => (
-        <li key={c.nodeId} className="stack-collapsed">
-          <span className="stack-name">{labelOf(c.nodeId)}</span>
-          <span className="mono muted">×{c.calls}, collapsed after 10</span>
-        </li>
-      ))}
-    </ul>
   );
 }

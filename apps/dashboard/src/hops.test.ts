@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { diffPayload } from "./diff";
 import { buildGraph } from "./graph";
 import { enter, exit, hop, login } from "./fixtures";
-import { callStackOf, dedupeEvents, hopsOf, latestTriggerId, traversalsOf } from "./hops";
+import { activeFrames, callStackOf, dedupeEvents, hopsOf, latestTriggerId, traversalsOf } from "./hops";
 
 
 describe("hopsOf", () => {
@@ -144,5 +144,18 @@ describe("diffPayload", () => {
     expect(diffPayload({ segment: "x" }, "session:abc").map((r) => `${r.path}:${r.status}`)).toEqual(["segment:removed", "(value):added"]);
     expect(diffPayload(undefined, undefined)).toEqual([]);
     expect(diffPayload({ a: 1 }, undefined).map((r) => r.status)).toEqual(["removed"]);
+  });
+});
+
+describe("activeFrames", () => {
+  const row = (spanId: string, depth: number, durationMs?: number) => ({ triggerId: "t", spanId, nodeId: spanId, depth, durationMs });
+
+  it("keeps only calls that have not returned, innermost first", () => {
+    const rows = [row("a", 0), row("b", 1), row("c", 2), row("d", 1, 3)];
+    expect(activeFrames(rows).map((r) => r.spanId)).toEqual(["c", "b", "a"]);
+  });
+
+  it("is empty once everything has returned", () => {
+    expect(activeFrames([row("a", 0, 5), row("b", 1, 2)])).toEqual([]);
   });
 });

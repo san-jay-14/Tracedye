@@ -157,6 +157,11 @@ export function callStackOf(events: CollectorEvent[], triggerId: string): { rows
   return { rows, collapsed };
 }
 
+// The calls that have started but not returned, innermost first: what a debugger would call the stack.
+export function activeFrames(rows: CallRow[]): CallRow[] {
+  return rows.filter((row) => row.durationMs === undefined).sort((a, b) => b.depth - a.depth);
+}
+
 export function labelOf(nodeId: string): string {
   if (nodeId === "client") return "React client";
   return nodeId.split(":").at(-2) ?? nodeId;
