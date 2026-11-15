@@ -1,6 +1,6 @@
-import { Background, BackgroundVariant, Controls, MarkerType, ReactFlow, type Edge, type Node } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, MarkerType, ReactFlow, useReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import type { Graph } from "./graph";
 import { NODE_WIDTH, layoutNodes } from "./layout";
 import { PacketEdge } from "./PacketEdge";
@@ -17,9 +17,10 @@ interface Props {
   travelMs: number; // how long a packet takes to cross an edge; 0 turns the animation off
   selectedEdgeId?: string;
   onEdgeClick: (edgeId: string) => void;
+  onOpenGroup: (nodeId: string) => void; // a box that stands for several nodes was clicked
 }
 
-export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, selectedEdgeId, onEdgeClick }: Props) {
+export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, selectedEdgeId, onEdgeClick, onOpenGroup }: Props) {
   // Positions and labels only change with the graph itself, not with every packet.
   const positions = useMemo(() => {
     const laidOut = layoutGraph ?? graph;
@@ -38,13 +39,13 @@ export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, sel
   );
 
   return (
-    // Keyed by node count so the view re-fits when the map arrives or grows (fitView only runs on mount).
     <ReactFlow
-      key={(layoutGraph ?? graph).nodes.length}
       nodes={nodes}
       edges={edges}
       edgeTypes={edgeTypes}
       onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
+      onNodeClick={(_, node) => (node.data as { container?: boolean }).container && onOpenGroup(node.id)}
+      nodesDraggable={false}
       colorMode="dark"
       fitView
       fitViewOptions={{ padding: 0.12, maxZoom: 1.15 }}
@@ -53,13 +54,26 @@ export function FlowCanvas({ graph, layoutGraph, pulses, arrivals, travelMs, sel
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--dot)" />
       <Controls showInteractive={false} />
+      <RefitOnChange signature={(layoutGraph ?? graph).nodes.map((n) => n.id).join("|")} />
     </ReactFlow>
   );
+}
+
+// Frames the whole picture again, with a glide, whenever the set of boxes changes: the map arrives,
+// a request brings new nodes, or a box is opened or closed.
+function RefitOnChange({ signature }: { signature: string }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => fitView({ padding: 0.12, maxZoom: 1.15, duration: 600 }));
+    return () => cancelAnimationFrame(frame);
+  }, [signature, fitView]);
+  return null;
 }
 
 // What a node is, in words: colour is kept for what happened, so the kind is written out.
 const KIND_WORD = { app: "route", store: "store", ai: "model", external: "client" } as const;
 function nodeCaption(node: Graph["nodes"][number]): string {
+  if (node.container) return node.container.caption;
   const place = node.file ? `${node.file.split("/").pop()}:${node.line}` : "";
   return node.kind === "app" ? place || KIND_WORD.app : [KIND_WORD[node.kind], place].filter(Boolean).join(" · ");
 }
@@ -68,7 +82,7 @@ function nodeCaption(node: Graph["nodes"][number]): string {
 // arrival is a fresh element and the animation plays again.
 function withRipple(node: Node, arrival: number | undefined): Node {
   if (!arrival) return node;
-  return { ...node, data: { label: (<>{(node.data as { label: ReactNode }).label}<span key={arrival} className="ripple" aria-hidden="true" /></>) } };
+  return { ...node, data: { ...node.data, label: (<>{(node.data as { label: ReactNode }).label}<span key={arrival} className="ripple" aria-hidden="true" /></>) } };
 }
 
 function toFlow(graph: Graph, positions: Map<string, { x: number; y: number }>): { nodes: Node[]; edges: Edge[] } {
@@ -76,7 +90,7 @@ function toFlow(graph: Graph, positions: Map<string, { x: number; y: number }>):
     id: node.id,
     position: positions.get(node.id) ?? { x: 0, y: 0 },
     // A node that never ran stays faded and dashed, like its static edges.
-    className: `node node-${node.kind} ${node.seen ? "node-seen" : "node-unseen"}`,
+    className: `node node-${node.kind} ${node.seen ? "node-seen" : "node-unseen"}${node.container ? " node-group" : ""}`,
     style: { width: NODE_WIDTH },
     sourcePosition: "right" as Node["sourcePosition"],
     targetPosition: "left" as Node["targetPosition"],
@@ -85,8 +99,10 @@ function toFlow(graph: Graph, positions: Map<string, { x: number; y: number }>):
         <div>
           <strong>{node.label}</strong>
           <small>{nodeCaption(node)}</small>
+          {node.container && <span className="open-hint" aria-hidden="true">Open</span>}
         </div>
       ),
+      container: Boolean(node.container),
     },
   }));
 

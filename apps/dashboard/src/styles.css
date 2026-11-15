@@ -1142,3 +1142,124 @@ main.wide {
     display: none;
   }
 }
+
+/* Level of detail */
+.levels {
+  position: absolute;
+  top: 14px;
+  right: 40px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.level-switch {
+  display: flex;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.level-switch button {
+  padding: 6px 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.level-switch button:hover {
+  color: var(--text);
+}
+
+.level-switch button.on {
+  color: var(--paper);
+  background: var(--text);
+}
+
+.level-hint {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.open-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.open-groups button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.open-groups button:hover {
+  border-color: var(--text);
+}
+
+/* A box that holds other boxes looks like a stack of cards and says it can be opened. */
+.react-flow__node.node-group {
+  cursor: pointer;
+  box-shadow:
+    4px 4px 0 -1px var(--surface),
+    4px 4px 0 0 var(--line-strong),
+    8px 8px 0 -1px var(--surface),
+    8px 8px 0 0 var(--line);
+}
+
+.react-flow__node.node-group:hover {
+  border-color: var(--observed);
+}
+
+.open-hint {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.react-flow__node.node-group:hover .open-hint {
+  color: var(--observed);
+}
+
+/* Boxes that appear when a group opens grow in from where the group was. */
+.react-flow__node {
+  animation: node-in 0.4s ease-out;
+}
+
+@keyframes node-in {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+
+.react-flow__node,
+.react-flow__edge {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}

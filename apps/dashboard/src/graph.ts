@@ -4,6 +4,8 @@ import { edgeId, labelOf, traversalsOf } from "./hops";
 export interface GraphNode extends MapNode {
   // True once a runtime event has shown this node running. Unseen nodes are static only.
   seen: boolean;
+  // Set on a box that stands for several nodes; it can be opened to show them.
+  container?: { caption: string };
 }
 
 export interface GraphEdge {

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlowCanvas } from "./FlowCanvas";
+import { BACKEND, abstractGraph, buildHierarchy, visibleId } from "./abstraction";
 import { buildGraph } from "./graph";
-import { callStackOf, dedupeEvents, hopsOf } from "./hops";
+import { callStackOf, dedupeEvents, edgeId, hopsOf } from "./hops";
 import { CallStack } from "./CallStack";
 import { Inspector, type Tab } from "./Inspector";
+import { LevelBar } from "./LevelBar";
 import { HopList, PayloadDiff } from "./Panels";
 import { EDGE_LOOK, PROVENANCE_DESCRIPTION } from "./provenance";
 import { buildReplayGraph, stepEdgeIds } from "./replay";
@@ -45,19 +47,34 @@ export function App() {
     () => (triggerId ? buildReplayGraph(map, playback.ordered, shownEvents) : undefined),
     [map, triggerId, playback.ordered, shownEvents],
   );
-  const graph = replayGraph?.graph ?? buildGraph(map, []);
+  const fullGraph = replayGraph?.graph ?? buildGraph(map, []);
 
-  // Each step sends one packet along its edges; the position changing is what starts it.
-  const { sent, currentStep } = playback;
-  const pulses = useMemo(
-    () => (sent && sent.position === position ? Object.fromEntries(stepEdgeIds(currentStep).map((id) => [id, sent.n])) : {}),
-    [sent, currentStep, position],
+  // Level of detail. Groups come from every request seen so far, so they do not shift between requests.
+  const everything = useMemo(() => buildGraph(map, events), [map, events]);
+  const hierarchy = useMemo(() => buildHierarchy(everything.nodes, everything.edges), [everything]);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const graph = useMemo(() => abstractGraph(fullGraph, hierarchy, expanded), [fullGraph, hierarchy, expanded]);
+  const layoutGraph = useMemo(
+    () => (replayGraph ? abstractGraph(replayGraph.layout, hierarchy, expanded) : undefined),
+    [replayGraph, hierarchy, expanded],
   );
+  const seeAs = (id: string) => visibleId(hierarchy, expanded, id);
+
+  // Each step sends one packet along its edges; the position changing is what starts it. Calls inside
+  // a closed box send nothing between boxes, but the box still ripples.
+  const { sent, currentStep } = playback;
+  const pulses = useMemo(() => {
+    if (!sent || sent.position !== position || !currentStep) return {};
+    const own = currentStep.traversals.map((t) => edgeId(seeAs(t.from), seeAs(t.to))).filter((id) => graph.edges.some((e) => e.id === id));
+    return Object.fromEntries(own.map((id) => [id, sent.n]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sent, currentStep, position, graph, hierarchy, expanded]);
 
   // The node each packet is heading for ripples when the packet gets there.
   const arrivals = useMemo(
-    () => (sent && sent.position === position && currentStep ? Object.fromEntries(currentStep.traversals.map((t) => [t.to, sent.n])) : {}),
-    [sent, currentStep, position],
+    () => (sent && sent.position === position && currentStep ? Object.fromEntries(currentStep.traversals.map((t) => [seeAs(t.to), sent.n])) : {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sent, currentStep, position, hierarchy, expanded],
   );
 
   const hops = useMemo(() => hopsOf(shownEvents), [shownEvents]);
@@ -83,7 +100,7 @@ export function App() {
   // Stepping clears a manual choice, so the payload follows the hop the replay just reached.
   useEffect(() => setSelectedId(undefined), [position]);
   const selected = hops.find((hop) => hop.id === selectedId) ?? (position < total ? hops.at(-1) : hops[0]);
-  const selectedEdgeId = selected && `${selected.from}->${selected.to}`;
+  const selectedEdgeId = selected && edgeId(seeAs(selected.from), seeAs(selected.to));
 
   // Picking a hop, in the list or on the canvas, opens its payload.
   const chooseHop = (id: string) => {
@@ -91,10 +108,13 @@ export function App() {
     setTab("payload");
     setInspectorOpen(true);
   };
-  const selectEdge = (edgeId: string) => {
-    const hit = [...hops].reverse().find((hop) => `${hop.from}->${hop.to}` === edgeId);
+  const selectEdge = (clicked: string) => {
+    const hit = [...hops].reverse().find((hop) => edgeId(seeAs(hop.from), seeAs(hop.to)) === clicked);
     if (hit) chooseHop(hit.id);
   };
+
+  const open = (id: string) => setExpanded((now) => new Set(now).add(id));
+  const close = (id: string) => setExpanded((now) => (id === BACKEND ? new Set() : new Set([...now].filter((g) => g !== id))));
 
   const state = !connected ? "offline" : armed ? "armed" : "idle";
   const triggerName = playback.triggers.find((t) => t.id === triggerId)?.name;
@@ -124,7 +144,7 @@ export function App() {
               </p>
             </div>
           ) : (
-            <FlowCanvas graph={graph} layoutGraph={replayGraph?.layout} pulses={pulses} arrivals={arrivals} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} />
+            <FlowCanvas graph={graph} layoutGraph={layoutGraph} pulses={pulses} arrivals={arrivals} travelMs={stepMs * TRAVEL_SHARE} selectedEdgeId={selectedEdgeId} onEdgeClick={selectEdge} onOpenGroup={open} />
           )}
 
           <ul className="legend" aria-label="Edge legend">
@@ -152,6 +172,7 @@ export function App() {
             </li>
           </ul>
 
+          {graph.nodes.length > 0 && <LevelBar hierarchy={hierarchy} expanded={expanded} onChange={setExpanded} onClose={close} />}
           <Transport playback={playback} />
         </section>
 
@@ -161,7 +182,7 @@ export function App() {
           tab={tab}
           onTab={setTab}
           counts={{ hops: hops.length, stack: stack.rows.length }}
-          title={triggerId && triggerName ? `${triggerName} · ${triggerId.slice(-8)}` : undefined}
+          title={triggerId && triggerName ? `${triggerName} Â· ${triggerId.slice(-8)}` : undefined}
           footer={
             <>
               {demo && (
