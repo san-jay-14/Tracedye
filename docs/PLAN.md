@@ -75,3 +75,4 @@ Work one day at a time. Tick the boxes when the "Done when" line is true. Build 
 - [x] Dashboard trigger bar (arm and disarm), so arming no longer needs `curl`.
 - [x] Published `tracedye` 0.1.0 on npm (MIT, Node 22.13+). `node packages/tracedye/scripts/verify.mjs --from-registry` re-checks the published copy.
 - [x] Dashboard overhaul: one playback engine (speed 0.25x to instant, loop, step, follow latest), glowing packets with trails and node ripples timed by the speed, tabbed side panel that folds away, a call stack that shows the running frames, levels of detail (System, APIs, Functions) with click-to-open boxes, search, focus on one function, legend filters, minimap, keyboard shortcuts. Combined edges stay honest: observed only if a call across them was observed.
+- [x] Prepared `tracedye` 0.1.1 with the new dashboard (build and verify pass). Publish with `npm publish` from `packages/tracedye`.

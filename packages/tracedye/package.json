@@ -1,6 +1,6 @@
 {
   "name": "tracedye",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "See one real request move through your TypeScript app, with the payload at every hop. Dev-only.",
   "license": "MIT",
   "type": "module",
